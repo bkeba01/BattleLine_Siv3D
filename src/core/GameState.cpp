@@ -1,11 +1,12 @@
 ﻿#include "core/GameState.h"
+#include "core/Common.h"
 int checkSerialValue(int playerindex,int flagindex,std::vector<Flag>& m_flags,int serial_count=0);
 
 GameState::GameState(Player player1, Player player2, Deck deck)
     : m_player1(player1), m_player2(player2), m_deck(deck)
 {
-    m_flags.reserve(9);
-    for(int i=0;i<9;++i)
+    m_flags.reserve(ste_FlagMakeNum);
+    for(int i=ste_FlagMinNum;i<=ste_FlagMaxNum;++i)
     {
         m_flags.emplace_back(i);
     }
@@ -27,9 +28,9 @@ bool GameState::getFinished() { return finished; }
 
 void GameState::autoSetFinished()
 {
-    for(int playerindex=1;playerindex<3;++playerindex)
+    for(int playerindex=ste_PlayerMin;playerindex<=ste_PlayerMax;++playerindex)
     {
-        for(int flagindex=0;flagindex<9;++flagindex)
+        for(int flagindex=ste_FlagMinNum;flagindex<=ste_FlagMaxNum;++flagindex)
         {
             if(m_flags[flagindex].getFlagStatus()==playerindex)
             {
@@ -38,12 +39,12 @@ void GameState::autoSetFinished()
         }
     }
     std::cout<<"Player 0 score:"<<m_player_score[PLAYER1]<<", Player 1 score:"<<m_player_score[PLAYER2]<<std::endl;
-    if(m_player_score[PLAYER1]>=5 || m_player_score[PLAYER2]>=5)
+    if(m_player_score[PLAYER1]>=ste_FlagWinThreshold || m_player_score[PLAYER2]>= ste_FlagWinThreshold)
     {
         finished=true;
         m_winner=(m_player_score[PLAYER1]>m_player_score[PLAYER2])?PLAYER1:PLAYER2;
     }
-    else if(m_player_score[PLAYER1]>=3 || m_player_score[PLAYER2]>=3)
+    else if(m_player_score[PLAYER1]>=ste_FlagWinSerialThreshold || m_player_score[PLAYER2]>= ste_FlagWinSerialThreshold)
     {
         m_winner=checkSerialValue(0,0,m_flags);
         if(m_winner!=NONE)
@@ -61,9 +62,9 @@ void GameState::autoSetFinished()
         finished=false;
         m_winner=NONE;
     }
-    for(int i=0;i<2;++i)
+    for(int i=ste_PlayerMin;i<=ste_PlayerMax;++i)
     {
-        m_player_score[i]=0;
+        m_player_score[i]= ste_Flag_NonStatus;
     }
 }
 
@@ -76,7 +77,7 @@ int checkSerialValue(int playerIndex, int flagIndex, std::vector<Flag>& m_flags,
     {
         serialCount++;
 
-        if (serialCount >= 3)
+        if (serialCount >= ste_FlagWinSerialThreshold)
             return playerIndex;
 
         // 次のフラグへ

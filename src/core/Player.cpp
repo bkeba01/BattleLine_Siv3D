@@ -2,11 +2,12 @@
 #include "core/HoverManager.h"
 #include "core/DragManager.h"
 #include "core/GameState.h"
+#include "core/Common.h"
 
 Player::Player(int playerId, Deck &deck, Vec2 card_hand_size, Vec2 card_hand_space) : m_id(playerId) 
 {
-    m_hand.reserve(7);
-    for(int i=0;i<7;++i)
+    m_hand.reserve(ste_HandCardMakeNum);
+    for(int i=ste_HandCardMinNum;i<=ste_HandCardMaxNum;i++)
     {
         try 
         {
@@ -25,15 +26,15 @@ int Player::getId() const { return m_id; }
 
 int Player::drawCard(Deck* deck) 
 {
-    if (m_hand.size() >= 7) {
-        return 0; // Hand is full, do not draw
+    if (m_hand.size() >ste_HandCardMaxNum) {
+        return ste_HandCardFull; // Hand is full, do not draw
     }
     try {
         Card card = deck->drawCard();
         //push_backは、ベクターの末尾に要素を追加する。
-        if(card.getValue() == 0 && card.getColor() == 0) 
+        if(card.getValue() == ste_NoneCard && card.getColor() == ste_NoneColor)
         {
-            return -1;
+            return ste_NoneDeck;
         }
         m_hand.push_back(card);
     } catch (const std::out_of_range& e) {
@@ -46,7 +47,7 @@ const std::vector<Card>& Player::getHand() const { return m_hand; }
 
 void Player::setChoiceCardIndex(int card_index) 
 {
-    if (card_index < 0 || card_index >= static_cast<int>(m_hand.size())) 
+    if (card_index < ste_HandCardMinNum || card_index >= static_cast<int>(m_hand.size())) 
     {
         throw std::out_of_range("Invalid card index");
     }
@@ -60,7 +61,7 @@ int Player::getChoiceCardIndex() const
 
 int Player::removeCardFromHand(int index) 
 {
-    if (index < 0 || index >= static_cast<int>(m_hand.size())) 
+    if (index < ste_HandCardMinNum || index >= static_cast<int>(m_hand.size())) 
     {
         throw std::out_of_range("Invalid card index");
     }
@@ -93,7 +94,7 @@ void Player::drawHand(GameState& gameState)
 	const auto& hoveredCardIndex = m_dragManager.hoveredIndex();
 	const auto& heldCardIndex = m_dragManager.heldIndex();
 	Array<RectF> cardRects;
-	for (int i = 0; i < m_hand.size(); ++i)
+	for (int i = ste_HandCardMinNum; i < m_hand.size(); ++i)
 	{
 		// プレイヤーの手札にあるカードの Rect を作成
 		const double centerX = m_hand[i].getCardHandSpace().x + m_hand[i].getCardHandSize().x / 2 * i + (m_hand[i].getCardHandSize().x / 2.0);
@@ -112,7 +113,7 @@ void Player::drawHand(GameState& gameState)
 	// ホバーされているカードを最後に描画して、他のカードより手前に表示
 	if (m_dragManager.isDragging())
 	{
-		Vec2 cardSize = m_hand[1].getCardHandSize();
+		Vec2 cardSize = m_hand[ste_Player1].getCardHandSize();
 		bool slotFound = false;
 
 		if (const auto heldIndex = m_dragManager.heldIndex())
@@ -123,9 +124,9 @@ void Player::drawHand(GameState& gameState)
 			for (auto& flag : gameState.getFlags())
 			{
 				int emptySlotIndex = flag.checkCardSpace(gameState.getCurrentPlayer());
-				if (emptySlotIndex != -1)
+				if (emptySlotIndex != ste_SlotCard_NonSpace)
 				{
-					for (; emptySlotIndex < 3; ++emptySlotIndex)
+					for (; emptySlotIndex <=ste_SlotCardMaxNum; ++emptySlotIndex)
 					{
 						const RectF slotRect = flag.getCardSlotRect(gameState.getCurrentPlayer()->getId(), emptySlotIndex);
 
@@ -151,8 +152,33 @@ void Player::drawHand(GameState& gameState)
 			m_hand[holdIndex].draw(draggingRect);
 		}
 	}
-	else if (heldCardIndex) // ドラッグが終了したフレームの処理
+	else if (MouseL.up() && m_dragManager.getDraggingLastFrame()) // ドラッグが終了したフレームの処理
 	{
+		if (const auto heldIndex = m_dragManager.getheldIndexLastFrame()) // 👈 heldIndex を保持しておく
+		{
+			const RectF droppedRect = m_dragManager.getDraggingRect(
+				m_hand[*heldIndex].getCardHandSize().x,
+				m_hand[*heldIndex].getCardHandSize().y);
+			const Vec2 droppedCardCenter = droppedRect.center();
+
+			for (auto& flag : gameState.getFlags())
+			{
+				int emptySlotIndex = flag.checkCardSpace(gameState.getCurrentPlayer());
+				if (emptySlotIndex != ste_SlotCard_NonSpace)
+				{
+					const RectF slotRect = flag.getCardSlotRect(
+						gameState.getCurrentPlayer()->getId(), emptySlotIndex);
+
+					if (slotRect.contains(droppedCardCenter))
+					{
+						flag.placeCard(m_hand[*heldIndex], gameState.getCurrentPlayer());
+						removeCardFromHand(*heldIndex);
+						break;
+					}
+				}
+			}
+		}
+		/*
 		const int index = *heldCardIndex;
 		const RectF droppedRect = m_dragManager.getDraggingRect(m_hand[index].getCardHandSize().x, m_hand[index].getCardHandSize().y);
 		const Vec2 droppedCardCenter = droppedRect.center();
@@ -161,7 +187,7 @@ void Player::drawHand(GameState& gameState)
 		for (auto& flag : gameState.getFlags())
 		{
 			int emptySlotIndex = flag.checkCardSpace(gameState.getCurrentPlayer());
-			if (emptySlotIndex != -1)
+			if (emptySlotIndex != ste_SlotCard_NonSpace)
 			{
 				const RectF slotRect{ flag.getPos().x - (flag.getCardSlotSize().x / 2), flag.getTexture().height() / 2 + flag.getPos().y + 20 + emptySlotIndex * (flag.getCardSlotSize().y / 3), flag.getCardSlotSize().x, flag.getCardSlotSize().y };
 
@@ -176,12 +202,13 @@ void Player::drawHand(GameState& gameState)
 				}
 			}
 		}
+		*/
 	}
 	else if (hoveredCardIndex)
 	{
 		const int i = *hoveredCardIndex;
-		const double centerX = m_hand[0].getCardHandSpace().x + m_hand[0].getCardHandSize().x / 2 * i + (m_hand[0].getCardHandSize().x / 2.0);
-		const RectF cardRect{ Arg::center(centerX, m_hand[0].getCardHandSpace().y), m_hand[0].getCardHandSize().x, m_hand[0].getCardHandSize().y };
+		const double centerX = m_hand[ste_Player1].getCardHandSpace().x + m_hand[ste_Player1].getCardHandSize().x / 2 * i + (m_hand[ste_Player1].getCardHandSize().x / 2.0);
+		const RectF cardRect{ Arg::center(centerX, m_hand[ste_Player1].getCardHandSpace().y), m_hand[ste_Player1].getCardHandSize().x, m_hand[ste_Player1].getCardHandSize().y };
 		const RectF enlargedCard = cardRect.scaledAt(cardRect.center(), 1.15).moveBy(0, -20);
 		m_hand[i].draw(enlargedCard);
 	}

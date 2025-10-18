@@ -58,7 +58,7 @@ void Flag::checkRoleStatus(Player* currentPlayer)
     {
         role[playerIndex]=ste_Straight;
     }
-    else if(Flag::checkCardSpace(currentPlayer)!=-1)
+    else if(Flag::checkCardSpace(currentPlayer)!= ste_SlotCard_NonSpace)
     {
         role[playerIndex]=ste_NoneRole;
     }
@@ -102,12 +102,12 @@ void Flag::checkFlagStatus()
         }
         else
         {
-            m_take_flag=ste_NonPlayer;
+            m_take_flag=ste_NonePlayer;
         }
     }
     else
     {
-        m_take_flag= ste_NonPlayer;
+        m_take_flag= ste_NonePlayer;
     }
 }
 
@@ -119,15 +119,15 @@ int Flag::getFlagStatus()
 int Flag::checkCardSpace(Player* currentPlayer) 
 {
     int playerIndex = currentPlayer->getId();
-    for (int i = 0; i < 3; ++i) 
+    for (int i = ste_SlotCardMinNum; i <= ste_SlotCardMaxNum; i++)
     {
-        if (m_cards[playerIndex][i].getValue() == ste_NonCard) 
+        if (m_cards[playerIndex][i].getValue() == ste_NoneCard) 
         {
             return i; // 空きスロットのインデックスを返す
         }
     }
 
-    return -1;
+    return ste_SlotCard_NonSpace;
 }
 
 void Flag::setCardSpace(bool isEmpty, int playerIndex)
@@ -146,7 +146,7 @@ bool Flag::getCardSpace(int playerIndex)
 
 Card Flag::getCard(int playerIndex, int slotIndex) const
 {
-    if (playerIndex < ste_PlayerMin || playerIndex > ste_PlayerMax || slotIndex < 0 || slotIndex >= 3) 
+    if (playerIndex < ste_PlayerMin || playerIndex > ste_PlayerMax || slotIndex < ste_SlotCardMinNum || slotIndex > ste_SlotCardMaxNum) 
     {
         throw std::out_of_range("Invalid player or slot index");
     }
@@ -179,7 +179,7 @@ void Flag::slotdraw()
         const RectF rect=getCardSlotRect(0, i);
         const Card& card = m_cards[ste_Player1][i];
 
-        if (card.getValue() != 0)
+        if (card.getValue() != ste_NoneCard)
         {
             card.draw(rect);
         }
@@ -201,7 +201,7 @@ void Flag::slotdraw()
 		const RectF rect=getCardSlotRect(1, i);
         const Card& card = m_cards[ste_Player2][i];
 
-        if (card.getValue() != 0)
+        if (card.getValue() != ste_NoneCard)
         {
             card.draw(rect);
         }
