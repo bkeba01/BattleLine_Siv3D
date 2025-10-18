@@ -17,6 +17,7 @@ class Player
         int m_card_index; 
         bool m_hand_empty; // 手札が空かどうかを保存する変数
         DragManager m_dragManager;
+		Array<RectF> m_cardRects;
 
     public:
         Player(int playerId,Deck &deck,Vec2,Vec2);
@@ -36,6 +37,11 @@ class Player
         const DragManager& getDragManager() const { return m_dragManager; }
 
 		void drawHand(GameState& gameState);
+
+	private:
+		void drawPlayerCards();
+
+		void drawHoveredAndHeldCards(GameState& gameState);
         
 };
 #endif
