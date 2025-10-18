@@ -1,0 +1,212 @@
+#include "../include/core/Card.h"
+#include "../include/core/Deck.h"
+#include "../include/core/Player.h"
+#include "../include/core/GameState.h"
+#include "../include/core/Flag.h"
+#include <iostream>
+using namespace std;
+void gameLoop(GameState& gameState);
+void showPlayerHand(const Player& player);
+void displayBoard(GameState& gameState);
+
+GameState initializeGame()
+{
+	cout << "Game initialized." << endl;
+	Deck deck;
+	deck.shuffle();
+	Player player1(0, deck);
+	Player player2(1, deck);
+	GameState gameState(player1, player2, deck);
+	gameState.setCurrentPlayer(gameState.getPlayer1());
+	return gameState;
+}
+
+void main()
+{
+	GameState gameState = initializeGame();
+	gameLoop(gameState);
+
+}
+
+void gameLoop(GameState& gameState)
+{
+	// ゲームのメインループをここに実装
+	// 例: プレイヤーのターン、カードのプレイ、勝利条件のチェックなど
+	cout << "Game loop started." << endl;
+	int test_count = 0;
+	while (!gameState.getFinished())
+	{
+		test_count++;
+		if (test_count >= 1000)
+		{
+			cout << "Test count limit reached. Ending game." << endl;
+			break;
+		}
+		if (gameState.getCurrentPlayer()->getHandIsEmpty())
+		{
+			cout << "Player " << gameState.getCurrentPlayer()->getId() << "'s hand is empty. Game over." << endl;
+		}
+		if (gameState.getDeck()->getEmpty())
+		{
+			cout << "Deck is empty. Game over." << endl;
+
+		}
+
+		cout << "Start:" << "Player " << gameState.getCurrentPlayer()->getId() << "'s turn." << endl;
+		showPlayerHand(*gameState.getCurrentPlayer());
+		int position;
+		cout << "Choose flag position(0-8):";
+		cin >> position;
+		if (position < 0 || position>8)
+		{
+			cout << "Invalid position. Try again." << endl;
+			continue;
+		}
+		if (gameState.getFlags()[position].checkCardSpace(gameState.getCurrentPlayer()) == -1)
+		{
+			cout << "No space on this flag. Try again." << endl;
+			continue;
+		}
+		cout << "Player " << gameState.getCurrentPlayer()->getId() << " choose card index:";
+		int cardIndex;
+		cin >> cardIndex;
+		gameState.getCurrentPlayer()->setChoiceCardIndex(cardIndex);
+		cout << "Player " << gameState.getCurrentPlayer()->getId() << " choice " << "color:" <<
+			gameState.getCurrentPlayer()->getHand()[gameState.getCurrentPlayer()->getChoiceCardIndex()].getColor() <<
+			" Value:" << gameState.getCurrentPlayer()->getHand()[gameState.getCurrentPlayer()->getChoiceCardIndex()].getValue() << endl;
+		gameState.getFlags()[position].placeCard(gameState.getCurrentPlayer());
+		cout << "Card placed on flag " << position << ": ";
+		for (int i = 0; i < 3; i++)
+		{
+			cout << "[" << gameState.getFlags()[position].getCard(gameState.getCurrentPlayer()->getId(), i).getColor() <<
+				"," << gameState.getFlags()[position].getCard(gameState.getCurrentPlayer()->getId(), i).getValue() << "] ";
+		}
+		cout << endl;
+		if (gameState.getCurrentPlayer()->getHandIsEmpty())
+		{
+			cout << "Player " << gameState.getCurrentPlayer()->getId() << "'s hand is empty. Game over." << endl;
+
+		}
+		else if (gameState.getCurrentPlayer()->removeCardFromHand(gameState.getCurrentPlayer()->getChoiceCardIndex()) == -1)
+		{
+			cout << "Player " << gameState.getCurrentPlayer()->getId() << "'s hand is empty. Game over." << endl;
+		}
+		else
+		{
+			cout << "Player " << gameState.getCurrentPlayer()->getId() << "'s hand after removing the card:" << endl;
+			showPlayerHand(*gameState.getCurrentPlayer());
+		}
+
+		if (gameState.getDeck()->getEmpty())
+		{
+			cout << "Deck is empty. Game over." << endl;
+
+		}
+		else if (gameState.getCurrentPlayer()->drawCard(gameState.getDeck()) == -1)
+		{
+			cout << "Deck is empty. Game over." << endl;
+
+		}
+		else
+		{
+			cout << "Player " << gameState.getCurrentPlayer()->getId() << "'s hand after drawing a card:" << endl;
+			showPlayerHand(*gameState.getCurrentPlayer());
+		}
+		cout << endl;
+		displayBoard(gameState);
+		gameState.autoSetFinished();
+		if (gameState.getFinished())
+		{
+			break;
+		}
+		gameState.setCurrentPlayer(gameState.getCurrentPlayer()->getId() == 0 ? gameState.getPlayer2() : gameState.getPlayer1());
+	}
+	cout << "Game finished." << endl;
+	if (gameState.getWinner() != NONE)
+	{
+		cout << "Player " << gameState.getWinner() << " wins!" << endl;
+	}
+	else
+	{
+		cout << "It's a draw!" << endl;
+	}
+	// ここにゲームロジックを追加
+	cout << "Game loop ended." << endl;
+}
+
+
+void showPlayerHand(const Player& player)
+{
+	cout << "Player " << player.getId() << "'s hand:" << endl;
+	for (int i = 0; i < player.getHand().size(); ++i) {
+		const Card& card = player.getHand()[i];
+		cout << "Card " << i << ": Color " << card.getColor() << ", Value " << card.getValue() << endl;
+	}
+}
+
+void displayBoard(GameState& gameState) {
+	cout << "\n";
+	cout << "============================================ BattleLine ============================================\n";
+	cout << "\n";
+	cout << "                                          [Player " << gameState.getCurrentPlayer()->getId() << "]                                               \n";
+	cout << "\n";
+
+	for (int cardRow = 2; cardRow >= 0; cardRow--)
+	{
+		cout << "        ";
+		for (int flag = 0; flag < 9; flag++) {
+			if (gameState.getFlags()[flag].getFlagCard(gameState.getCurrentPlayer()->getId())[cardRow].getValue() == 0 && gameState.getFlags()[flag].getFlagCard(gameState.getCurrentPlayer()->getId())[cardRow].getColor() == 0)
+			{
+				cout << "[      ]  ";
+
+			}
+			else
+			{
+				cout << "[num:" << gameState.getFlags()[flag].getFlagCard(gameState.getCurrentPlayer()->getId())[cardRow].getValue() << "color:" << gameState.getFlags()[flag].getFlagCard(gameState.getCurrentPlayer()->getId())[cardRow].getColor() << "]  ";
+			}
+		}
+		cout << "\n";
+	}
+
+	cout << "\n";
+	cout << "        ";
+	for (int flag = 0; flag < 9; flag++) {
+		string flagSymbol = "   FLAG  ";
+		if (gameState.getFlags()[flag].getFlagStatus() == 0) flagSymbol = "  [P0]  ";
+		else if (gameState.getFlags()[flag].getFlagStatus() == 1) flagSymbol = "  [P1]  ";
+		cout << flagSymbol << " ";
+	}
+	cout << "\n";
+
+	cout << "        ";
+	for (int i = 0; i < 9; i++) {
+		cout << "   " << (i + 1) << "      ";
+	}
+	cout << "\n\n";
+
+	int otherPlayerId = (gameState.getCurrentPlayer()->getId() == 0) ? 1 : 0;
+
+	for (int cardRow = 2; cardRow >= 0; cardRow--)
+	{
+		cout << "        ";
+		for (int flag = 0; flag < 9; flag++) {
+			if (gameState.getFlags()[flag].getFlagCard(otherPlayerId)[cardRow].getValue() == 0 && gameState.getFlags()[flag].getFlagCard(otherPlayerId)[cardRow].getColor() == 0)
+			{
+				cout << "[      ]  ";
+
+			}
+			else
+			{
+				cout << "[num:" << gameState.getFlags()[flag].getFlagCard(otherPlayerId)[cardRow].getValue() << "color:" << gameState.getFlags()[flag].getFlagCard(otherPlayerId)[cardRow].getColor() << "]  ";
+			}
+		}
+		cout << "\n";
+	}
+
+	cout << "\n";
+	cout << "                                          [Player " << otherPlayerId << "]                                               \n";
+	cout << "\n";
+	cout << "===================================================================================================\n";
+	cout << "\n";
+}
+
