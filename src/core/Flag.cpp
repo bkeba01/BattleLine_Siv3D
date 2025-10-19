@@ -18,12 +18,16 @@ int Flag::getPosition() const{ return m_position; }
 void Flag::placeCard(const Card& card, Player* currentPlayer)
 {
     int playerIndex = currentPlayer->getId();
-    Card cardToPlace = card;
 
-    m_cards[playerIndex][Flag::checkCardSpace(currentPlayer)] = cardToPlace;
+    int slot = Flag::checkCardSpace(currentPlayer);
+    if (slot != ste_SlotCard_NonSpace)
+    {
+        Card cardToPlace = card;
+        m_cards[playerIndex][slot] = cardToPlace;
 
-    Flag::checkRoleStatus(currentPlayer);
-    Flag::checkFlagStatus();
+        Flag::checkRoleStatus(currentPlayer);
+        Flag::checkFlagStatus();
+    }
 }
 
 void Flag::checkRoleStatus(Player* currentPlayer) 
@@ -173,15 +177,16 @@ Texture Flag::getTexture()
 
 void Flag::slotdraw()
 {
-    // Player 0 (相手側・上)
-    for (int i = 0; i < m_cards[ste_Player1].size(); ++i)
+    // Player 2 (ID 1, 相手側・上) -> Slot Index 0
+    for (int i = 0; i < m_cards[ste_Player2].size(); ++i)
     {
-        const RectF rect=getCardSlotRect(0, i);
-        const Card& card = m_cards[ste_Player1][i];
+        const RectF rect=getCardSlotRect(ste_Player2, i);
+        Card card = m_cards[ste_Player2][i];
 
         if (card.getValue() != ste_NoneCard)
         {
-            card.draw(rect);
+            card.setRect(rect);
+			card.draw();
         }
         else
         {
@@ -195,15 +200,16 @@ void Flag::slotdraw()
         }
     }
 
-    // Player 1 (自分側・下)
-    for (int i = 0; i < m_cards[ste_Player2].size(); ++i)
+    // Player 1 (ID 0, 自分側・下) -> Slot Index 1
+    for (int i = 0; i < m_cards[ste_Player1].size(); ++i)
     {
-		const RectF rect=getCardSlotRect(1, i);
-        const Card& card = m_cards[ste_Player2][i];
+		const RectF rect=getCardSlotRect(ste_Player1, i);
+        Card card = m_cards[ste_Player1][i];
 
         if (card.getValue() != ste_NoneCard)
         {
-            card.draw(rect);
+			card.setRect(rect);
+			card.draw();
         }
         else
         {
@@ -222,11 +228,13 @@ RectF Flag::getCardSlotRect(int playerIndex, int slotIndex)
 {
 
 	RectF rect;
-	if (playerIndex == ste_Player1) // プレイヤー1のカードスロット
+	// Top slots (for Player 2, ID 1)
+	if (playerIndex == ste_Player2) 
 	{
 		rect={ m_draw_position.x - (m_card_slot_size.x / 2), m_draw_position.y - (m_texture.height() / 2) - m_card_slot_size.y - 20 - (slotIndex * (m_card_slot_size.y / 3)), m_card_slot_size.x, m_card_slot_size.y };
 	}
-	else if (playerIndex == ste_Player2) // プレイヤー2のカードスロット
+	// Bottom slots (for Player 1, ID 0)
+	else if (playerIndex == ste_Player1) 
 	{
 		rect={ m_draw_position.x - (m_card_slot_size.x / 2), m_texture.height() / 2 + m_draw_position.y + 20 + slotIndex * (m_card_slot_size.y / 3), m_card_slot_size.x, m_card_slot_size.y };
 	}

@@ -99,6 +99,54 @@ void Player::updateDrag(Array<RectF>& cardRects)
 }
 
 
+void Player::update(GameState& gameState)
+{
+	if (m_cardRects.size() != m_hand.size())
+	{
+		m_cardRects.clear();
+		for (int i = ste_HandCardMinNum; i < m_hand.size(); ++i)
+		{
+			const double centerX = m_hand[i].getCardHandSpace().x + m_hand[i].getCardHandSize().x / 2 * i + (m_hand[i].getCardHandSize().x / 2.0);
+			m_cardRects << RectF{ Arg::center(centerX, m_hand[i].getCardHandSpace().y), m_hand[i].getCardHandSize().x, m_hand[i].getCardHandSize().y };
+		}
+	}
+
+	m_dragManager.updateDrag(m_cardRects);
+
+	if (m_dragManager.wasJustDropped())
+	{
+		if (const auto droppedIndex = m_dragManager.droppedIndex())
+		{
+			const int droppedHandIndex = *droppedIndex;
+			const Vec2 droppedCardCenter = m_hand[droppedHandIndex].getRect().center();
+
+			bool droppedInSlot = false;
+			for (auto& flag : gameState.getFlags())
+			{
+				int emptySlotIndex = flag.checkCardSpace(gameState.getCurrentPlayer());
+				if (emptySlotIndex != ste_SlotCard_NonSpace)
+				{
+					const RectF slotRect = flag.getCardSlotRect(gameState.getCurrentPlayer()->getId(), emptySlotIndex);
+					if (slotRect.contains(droppedCardCenter))
+					{
+						flag.placeCard(m_hand[droppedHandIndex], gameState.getCurrentPlayer());
+						removeCardFromHand(droppedHandIndex);
+						m_dragManager.clearHover();
+						droppedInSlot = true;
+						break;
+					}
+				}
+			}
+		}
+	}
+}
+
+void Player::draw(GameState& gameState)
+{
+	drawPlayerCards();
+	drawHoveredAndHeldCards(gameState);
+}
+
 void Player::drawPlayerCards()
 {
 	const auto& hoveredCardIndex = m_dragManager.hoveredIndex();
@@ -111,7 +159,8 @@ void Player::drawPlayerCards()
 
 		if (not isHeld && not isHovered)
 		{
-			m_hand[i].draw(m_cardRects[i]);
+			m_hand[i].setRect(m_cardRects[i]);
+			m_hand[i].draw();
 		}
 	}
 }
@@ -125,7 +174,8 @@ void Player::drawHoveredAndHeldCards(GameState& gameState)
 	{
 		const int i = *currentHoveredRectsIndex;
 		const RectF enlargedCard = m_cardRects[i].scaledAt(m_cardRects[i].center(), 1.15).moveBy(0, -20);
-		m_hand[i].draw(enlargedCard);
+		m_hand[i].setRect(enlargedCard);
+		m_hand[i].draw();
 	}
 
 	if (currentHeldRectsIndex)
@@ -148,50 +198,7 @@ void Player::drawHoveredAndHeldCards(GameState& gameState)
 			}
 		}
 
-		const RectF draggingRect = m_dragManager.getDraggingRect(cardSize.x, cardSize.y);
-		m_hand[*currentHeldRectsIndex].draw(draggingRect);
+		m_hand[*currentHeldRectsIndex].setRect(m_dragManager.getDraggingRect(cardSize.x, cardSize.y));
+		m_hand[*currentHeldRectsIndex].draw();
 	}
-}
-
-void Player::drawHand(GameState& gameState)
-{
-	if (m_cardRects.size() != m_hand.size())
-	{
-		m_cardRects.clear();
-		for (int i = ste_HandCardMinNum; i < m_hand.size(); ++i)
-		{
-			const double centerX = m_hand[i].getCardHandSpace().x + m_hand[i].getCardHandSize().x / 2 * i + (m_hand[i].getCardHandSize().x / 2.0);
-			m_cardRects << RectF{ Arg::center(centerX, m_hand[i].getCardHandSpace().y), m_hand[i].getCardHandSize().x, m_hand[i].getCardHandSize().y };
-		}
-	}
-
-	m_dragManager.updateDrag(m_cardRects);
-
-	if (MouseL.up())
-	{
-		if (const auto heldIndex = m_dragManager.heldIndex())
-		{
-			const int droppedHandIndex = *heldIndex;
-			const RectF& droppedRect = m_dragManager.getDraggingRect(m_hand[droppedHandIndex].getCardHandSize().x, m_hand[droppedHandIndex].getCardHandSize().y);
-			const Vec2 droppedCardCenter = droppedRect.center();
-
-			for (auto& flag : gameState.getFlags())
-			{
-				int emptySlotIndex = flag.checkCardSpace(gameState.getCurrentPlayer());
-				if (emptySlotIndex != ste_SlotCard_NonSpace)
-				{
-					const RectF slotRect = flag.getCardSlotRect(gameState.getCurrentPlayer()->getId(), emptySlotIndex);
-					if (slotRect.contains(droppedCardCenter))
-					{
-						flag.placeCard(m_hand[droppedHandIndex], gameState.getCurrentPlayer());
-						removeCardFromHand(droppedHandIndex);
-						break; 
-					}
-				}
-			}
-		}
-	}
-
-	drawPlayerCards();
-	drawHoveredAndHeldCards(gameState);
 }

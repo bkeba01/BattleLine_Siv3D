@@ -9,8 +9,8 @@ GameState initializeGame(HashTable<String,Vec2> object_pos)
 {
 	Deck deck(Font{ 30, Typeface::Bold }, Texture{ U"🃏"_emoji });
 	deck.shuffle();
-	Player player1(1, deck, object_pos[U"card_hand_size"], object_pos[U"card_hand_space"]);
-	Player player2(2, deck, object_pos[U"card_hand_size"], object_pos[U"card_hand_space"]);
+	Player player1(0, deck, object_pos[U"card_hand_size"], object_pos[U"card_hand_space"]);
+	Player player2(1, deck, object_pos[U"card_hand_size"], object_pos[U"card_hand_space"]);
 	GameState gameState(player1, player2, deck);
 	gameState.setCurrentPlayer(gameState.getPlayer1());
 	const Texture Flag_texture{ Image{ U"C:\\BattleLine\\BattleLine\\lib\\img\\ball_red.png" }.scaled(0.2) };
@@ -66,6 +66,8 @@ void Main()
 			gameState.getFlags()[flag].slotdraw();
 		}
 
-		gameState.getPlayer1()->drawHand(gameState);
+		gameState.getPlayer1()->update(gameState);
+
+		gameState.getPlayer1()->draw(gameState);
 	}
 }

@@ -36,7 +36,8 @@ class Player
         void updateDrag(Array<RectF>& cardRects);
         const DragManager& getDragManager() const { return m_dragManager; }
 
-		void drawHand(GameState& gameState);
+		void update(GameState& gameState);
+		void draw(GameState& gameState);
 
 	private:
 		void drawPlayerCards();

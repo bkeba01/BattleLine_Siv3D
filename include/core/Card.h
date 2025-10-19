@@ -9,6 +9,7 @@ class Card {
 		Texture m_texture;
 		Vec2 m_card_hand_size;
 		Vec2 m_card_hand_space;
+		RectF m_rect;
     public:
         Card();
         Card(int c, int v,Font font,Texture texture);
@@ -17,7 +18,8 @@ class Card {
 		void setFont(Font);
 		Font getFont();
 		void setTexture(Texture);
-		
+		void setRect(RectF rect) { m_rect = rect; };
+		RectF getRect() {return m_rect; };
 		void setCardHandSize(Vec2 card_hand_size) { m_card_hand_size = card_hand_size; };
 		void setCardHandSpace(Vec2 card_hand_space) { m_card_hand_space = card_hand_space; };
 		Vec2 getCardHandSize() { return m_card_hand_size; };
@@ -29,8 +31,8 @@ class Card {
         bool operator==(const Card& other) const {
             return m_color == other.m_color && m_value == other.m_value;
         }
-		void draw(const RectF& rect) const;
-		void drawBack(const RectF& rect) const;
+		void draw() const;
+		void drawBack() const;
 };
 
 #endif

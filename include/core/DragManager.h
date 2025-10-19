@@ -18,15 +18,22 @@ public:
 
 	void updateDrag(Array<RectF>& cardRects)
 	{
+		// フレームの開始時にドロップ状態をリセット
+		m_wasDropped = false;
+		m_droppedIndex = none;
+
 		m_currentPos = Cursor::PosF();
 
 		// --- 3. ドラッグ中の処理 ---
 		if (m_isDragging)
 		{
-			// heldIndex が有効なら、カードの位置を更新
-			if (m_heldIndex)
+			// マウスボタンが離されたらドロップ処理
+			if (MouseL.up())
 			{
-				cardRects[*m_heldIndex].setCenter(m_currentPos - m_offset);
+				m_wasDropped = true;
+				m_droppedIndex = m_heldIndex;
+				m_isDragging = false;
+				m_heldIndex = none;
 			}
 		}
 		// --- 1. ドラッグ中でない時の処理 ---
@@ -41,7 +48,6 @@ public:
 				if (m_hoveredIndex)
 				{
 					m_heldIndex = m_hoveredIndex;
-					// オフセットを計算 (元のコード通り .center() を基準にする)
 					m_offset = m_currentPos - cardRects[*m_heldIndex].center();
 					m_isDragging = true;
 				}
@@ -58,6 +64,8 @@ public:
 	bool wasJustDropped() const { return m_wasDropped; }
 	// マウスが離された瞬間に、どのカードがドロップされたかを返す
 	Optional<int> droppedIndex() const { return m_droppedIndex; }
+
+	void clearHover() { m_hoveredIndex = none; }
 
 	RectF getDraggingRect(double cardWidth, double cardHeight) const
 
