@@ -22,11 +22,11 @@ void Deck::shuffle() {
     std::shuffle(m_cards.begin(), m_cards.end(), g);
 }
 
-Card Deck::drawCard() 
+std::optional<Card> Deck::drawCard() 
 {
     if (m_cards.empty()) 
     {
-        throw std::out_of_range("Deck is empty");
+        return std::nullopt;
     }
 
     Card drawnCard = m_cards.back();

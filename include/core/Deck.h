@@ -2,6 +2,7 @@
 #define DECK_H
 
 #include <vector>
+#include <optional>
 #include "Card.h"
 #include <siv3D.hpp>
 
@@ -15,7 +16,7 @@ class Deck {
     public:
         Deck(const Font& font, const Texture& texture,const Texture& backtexture);
         void shuffle();
-        Card drawCard();
+        std::optional<Card> drawCard();
         bool isEmpty() const;
 		void setRect(RectF rect) { m_rect = rect; };
 		RectF getRect() { return m_rect; };

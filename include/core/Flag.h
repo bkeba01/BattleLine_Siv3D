@@ -40,8 +40,8 @@ class Flag {
 		Texture getTexture();
 		void setCardSlotSize(Vec2 card_slot_size) { m_card_slot_size = card_slot_size; };
 		Vec2 getCardSlotSize() { return m_card_slot_size; };
-		void slotdraw();
-		RectF getCardSlotRect(int playerIndex, int slotIndex);
+		void slotdraw(int currentPlayerId);
+		RectF getCardSlotRect(int playerIndex, int slotIndex, int currentPlayerId);
 
 };
 

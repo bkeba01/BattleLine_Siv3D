@@ -1,46 +1,44 @@
-#include "core/Player.h"
+﻿#include "core/Player.h"
 #include "core/HoverManager.h"
 #include "core/DragManager.h"
 #include "core/GameState.h"
 #include "core/Common.h"
 
-Player::Player(int playerId, Deck &deck, Vec2 card_hand_size, Vec2 card_hand_space) : m_id(playerId) 
+Player::Player(int playerId, Deck &deck, Vec2 card_hand_size, Vec2 card_hand_space) 
+	: m_id(playerId) 
+	, m_card_hand_size(card_hand_size)
+	, m_card_hand_space(card_hand_space)
 {
     m_hand.reserve(ste_HandCardMakeNum);
     for(int i=ste_HandCardMinNum;i<=ste_HandCardMaxNum;i++)
     {
-        try 
-        {
-            Card card = deck.drawCard();
+		if (auto cardOpt = deck.drawCard())
+		{
+			Card& card = *cardOpt;
 			card.setCardHandSize(card_hand_size);
 			card.setCardHandSpace(card_hand_space);
-            m_hand.push_back(card);
-        } catch (const std::out_of_range& e) {
-            throw std::runtime_error("Player " + std::to_string(m_id) + " cannot draw a card: " + e.what());
-        }
+			m_hand.push_back(card);
+		}
     }
     m_hand_empty=false;
 }
 
 int Player::getId() const { return m_id; }
 
-int Player::drawCard(Deck* deck) 
+void Player::drawCard(Deck* deck) 
 {
-    if (m_hand.size() >ste_HandCardMaxNum) {
-        return ste_HandCardFull; // Hand is full, do not draw
+    if (m_hand.size() > ste_HandCardMaxNum) { // ste_HandCardMaxNum is 6, so this prevents drawing if hand is 7 or more.
+        return;
     }
-    try {
-        Card card = deck->drawCard();
-        //push_backは、ベクターの末尾に要素を追加する。
-        if(card.getValue() == ste_NoneCard && card.getColor() == ste_NoneColor)
-        {
-            return ste_NoneDeck;
-        }
+
+    if (auto cardOpt = deck->drawCard())
+    {
+        Card& card = *cardOpt;
+        card.setCardHandSize(m_card_hand_size);
+        card.setCardHandSpace(m_card_hand_space);
         m_hand.push_back(card);
-    } catch (const std::out_of_range& e) {
-        throw std::runtime_error("Player " + std::to_string(m_id) + " cannot draw a card: " + e.what());
     }
-    return 0;
+    // If cardOpt is nullopt (deck is empty), do nothing.
 }
 
 const std::vector<Card>& Player::getHand() const { return m_hand; }
@@ -84,6 +82,15 @@ void Player::setHandIsEmpty(bool empty)
     m_hand_empty = empty;
 }
 
+void Player::setHandSpace(Vec2 space)
+{
+	m_card_hand_space = space;
+	for (auto& card : m_hand)
+	{
+		card.setCardHandSpace(space);
+	}
+}
+
 void Player::updateDrag(Array<RectF>& cardRects)
 {
 	m_dragManager.updateDrag(cardRects);
@@ -102,15 +109,6 @@ void Player::update()
 
 void Player::handleInput(GameState& gameState)
 {
-	
-		m_cardRects.clear();
-		for (int i = ste_HandCardMinNum; i < m_hand.size(); ++i)
-		{
-			const double centerX = m_hand[i].getCardHandSpace().x + m_hand[i].getCardHandSize().x / 2 * i + (m_hand[i].getCardHandSize().x / 2.0);
-			m_cardRects << RectF{ Arg::center(centerX, m_hand[i].getCardHandSpace().y), m_hand[i].getCardHandSize().x, m_hand[i].getCardHandSize().y };
-		}
-	
-
 	m_dragManager.updateDrag(m_cardRects);
 
 	if (m_dragManager.wasJustDropped())
@@ -126,7 +124,7 @@ void Player::handleInput(GameState& gameState)
 				int emptySlotIndex = flag.checkCardSpace(gameState.getCurrentPlayer());
 				if (emptySlotIndex != ste_SlotCard_NonSpace)
 				{
-					const RectF slotRect = flag.getCardSlotRect(gameState.getCurrentPlayer()->getId(), emptySlotIndex);
+const RectF slotRect = flag.getCardSlotRect(gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
 					if (slotRect.contains(droppedCardCenter))
 					{
 						flag.placeCard(m_hand[droppedHandIndex], gameState.getCurrentPlayer());
@@ -201,7 +199,7 @@ void Player::drawHoveredAndHeldCards(GameState& gameState)
 			int emptySlotIndex = flag.checkCardSpace(gameState.getCurrentPlayer());
 			if (emptySlotIndex != ste_SlotCard_NonSpace)
 			{
-				const RectF slotRect = flag.getCardSlotRect(gameState.getCurrentPlayer()->getId(), emptySlotIndex);
+				const RectF slotRect = flag.getCardSlotRect(gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
 				if (slotRect.contains(draggedCardCenter))
 				{
 					cardSize = flag.getCardSlotSize();
