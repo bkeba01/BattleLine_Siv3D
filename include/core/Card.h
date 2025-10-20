@@ -10,9 +10,10 @@ class Card {
 		Vec2 m_card_hand_size;
 		Vec2 m_card_hand_space;
 		RectF m_rect;
+		Texture m_back_texture;
     public:
         Card();
-        Card(int c, int v,Font font,Texture texture);
+        Card(int c, int v,Font font,Texture texture,Texture backtexture);
         int getColor() const;
         int getValue() const;
 		void setFont(Font);
@@ -33,6 +34,8 @@ class Card {
         }
 		void draw() const;
 		void drawBack() const;
+		void setBackTexture(Texture texture) { m_back_texture = texture; };
+		Texture getBackTexture() { return m_back_texture; }
 };
 
 #endif

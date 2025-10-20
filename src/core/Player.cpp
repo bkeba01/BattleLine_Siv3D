@@ -1,4 +1,4 @@
-﻿#include "core/Player.h"
+#include "core/Player.h"
 #include "core/HoverManager.h"
 #include "core/DragManager.h"
 #include "core/GameState.h"
@@ -20,12 +20,6 @@ Player::Player(int playerId, Deck &deck, Vec2 card_hand_size, Vec2 card_hand_spa
         }
     }
     m_hand_empty=false;
-
-	for (int i = ste_HandCardMinNum; i < m_hand.size(); ++i)
-	{
-		const double centerX = m_hand[i].getCardHandSpace().x + m_hand[i].getCardHandSize().x / 2 * i + (m_hand[i].getCardHandSize().x / 2.0);
-		m_cardRects << RectF{ Arg::center(centerX, m_hand[i].getCardHandSpace().y), m_hand[i].getCardHandSize().x, m_hand[i].getCardHandSize().y };
-	}
 }
 
 int Player::getId() const { return m_id; }
@@ -43,8 +37,6 @@ int Player::drawCard(Deck* deck)
             return ste_NoneDeck;
         }
         m_hand.push_back(card);
-		const double centerX = m_hand.back().getCardHandSpace().x + m_hand.back().getCardHandSize().x / 2 * (m_hand.size() - 1) + (m_hand.back().getCardHandSize().x / 2.0);
-		m_cardRects << RectF{ Arg::center(centerX, m_hand.back().getCardHandSpace().y), m_hand.back().getCardHandSize().x, m_hand.back().getCardHandSize().y };
     } catch (const std::out_of_range& e) {
         throw std::runtime_error("Player " + std::to_string(m_id) + " cannot draw a card: " + e.what());
     }
@@ -74,7 +66,6 @@ int Player::removeCardFromHand(int index)
         throw std::out_of_range("Invalid card index");
     }
     m_hand.erase(m_hand.begin() + index);
-	m_cardRects.remove_at(index);
     if(m_hand.empty())
     {
         setHandIsEmpty(true);
@@ -99,17 +90,26 @@ void Player::updateDrag(Array<RectF>& cardRects)
 }
 
 
-void Player::update(GameState& gameState)
+void Player::update()
 {
-	if (m_cardRects.size() != m_hand.size())
+	m_cardRects.clear();
+	for (int i = ste_HandCardMinNum; i < m_hand.size(); ++i)
 	{
+		const double centerX = m_hand[i].getCardHandSpace().x + m_hand[i].getCardHandSize().x / 2 * i + (m_hand[i].getCardHandSize().x / 2.0);
+		m_cardRects << RectF{ Arg::center(centerX, m_hand[i].getCardHandSpace().y), m_hand[i].getCardHandSize().x, m_hand[i].getCardHandSize().y };
+	}
+}
+
+void Player::handleInput(GameState& gameState)
+{
+	
 		m_cardRects.clear();
 		for (int i = ste_HandCardMinNum; i < m_hand.size(); ++i)
 		{
 			const double centerX = m_hand[i].getCardHandSpace().x + m_hand[i].getCardHandSize().x / 2 * i + (m_hand[i].getCardHandSize().x / 2.0);
 			m_cardRects << RectF{ Arg::center(centerX, m_hand[i].getCardHandSpace().y), m_hand[i].getCardHandSize().x, m_hand[i].getCardHandSize().y };
 		}
-	}
+	
 
 	m_dragManager.updateDrag(m_cardRects);
 
@@ -131,6 +131,7 @@ void Player::update(GameState& gameState)
 					{
 						flag.placeCard(m_hand[droppedHandIndex], gameState.getCurrentPlayer());
 						removeCardFromHand(droppedHandIndex);
+						gameState.changePlayer();
 						m_dragManager.clearHover();
 						droppedInSlot = true;
 						break;
@@ -145,6 +146,17 @@ void Player::draw(GameState& gameState)
 {
 	drawPlayerCards();
 	drawHoveredAndHeldCards(gameState);
+}
+
+void Player::drawBacks() const
+{
+	for (int i = 0; i < m_hand.size(); ++i)
+	{
+		// Create a mutable copy to set the rect
+		Card card = m_hand[i];
+		card.setRect(m_cardRects[i]);
+		card.drawBack();
+	}
 }
 
 void Player::drawPlayerCards()

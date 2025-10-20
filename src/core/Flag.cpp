@@ -197,6 +197,7 @@ void Flag::slotdraw()
             rect.right().draw(LineStyle::SquareDot, thickness, lineColor);
             rect.bottom().draw(LineStyle::SquareDot, thickness, lineColor);
             rect.left().draw(LineStyle::SquareDot, thickness, lineColor);
+			break;
         }
     }
 
@@ -220,6 +221,7 @@ void Flag::slotdraw()
             rect.right().draw(LineStyle::SquareDot, thickness, lineColor);
             rect.bottom().draw(LineStyle::SquareDot, thickness, lineColor);
             rect.left().draw(LineStyle::SquareDot, thickness, lineColor);
+			break;
         }
     }
 }

@@ -39,6 +39,8 @@ class GameState {
 
         void setWinner(int winner);
         int getWinner();
+
+		void changePlayer();
 };
 
 #endif

@@ -7,7 +7,9 @@
 
 GameState initializeGame(HashTable<String,Vec2> object_pos)
 {
-	Deck deck(Font{ 30, Typeface::Bold }, Texture{ U"🃏"_emoji });
+	RectF deck_card{ Arg::center((object_pos[U"card_slot_size"].x / 2) + 10,Scene::Height() / 2),object_pos[U"card_slot_size"].x,object_pos[U"card_slot_size"].y };
+	Deck deck(Font{ 30, Typeface::Bold }, Texture{ U"🃏"_emoji },Texture{U"⚔"_emoji});
+	deck.setRect(deck_card);
 	deck.shuffle();
 	Player player1(0, deck, object_pos[U"card_hand_size"], object_pos[U"card_hand_space"]);
 	Player player2(1, deck, object_pos[U"card_hand_size"], object_pos[U"card_hand_space"]);
@@ -49,11 +51,14 @@ void Main()
 	HashTable<String, Vec2> object_pos = initializePos();
 	GameState gameState = initializeGame(object_pos);
 
+	// Initial update to set card positions
+	gameState.getPlayer1()->update();
+	gameState.getPlayer2()->update();
+
 	while (System::Update())
 	{
-		RectF deck_card{ Arg::center((object_pos[U"card_slot_size"].x/ 2) + 10,Scene::Height() / 2),object_pos[U"card_slot_size"].x,object_pos[U"card_slot_size"].y};
-		deck_card.draw(Arg::top = ColorF{ 0.5, 0.7, 0.9 }, Arg::bottom = ColorF{ 0.5, 0.9, 0.7 });
-
+		
+		gameState.getDeck()->drawDeck();
 		for (int flag = 0; flag < 9; flag++)
 		{
 			
@@ -66,8 +71,26 @@ void Main()
 			gameState.getFlags()[flag].slotdraw();
 		}
 
-		gameState.getPlayer1()->update(gameState);
+		// Update visuals for both players
+		gameState.getPlayer1()->update();
+		gameState.getPlayer2()->update();
 
-		gameState.getPlayer1()->draw(gameState);
+		// Handle input for the current player
+		gameState.getCurrentPlayer()->handleInput(gameState);
+
+		// Draw hands
+		Player* player1 = gameState.getPlayer1();
+		Player* player2 = gameState.getPlayer2();
+
+		if (gameState.getCurrentPlayer() == player1)
+		{
+			player1->draw(gameState);
+			player2->drawBacks();
+		}
+		else
+		{
+			player1->drawBacks();
+			player2->draw(gameState);
+		}
 	}
 }

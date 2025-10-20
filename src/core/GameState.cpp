@@ -90,8 +90,6 @@ int checkSerialValue(int playerIndex, int flagIndex, std::vector<Flag>& m_flags,
     }
 }
 
-
-
 void GameState::setWinner(int winner)
 {
     m_winner = winner;
@@ -99,4 +97,9 @@ void GameState::setWinner(int winner)
 int GameState::getWinner()
 {
     return m_winner;
+}
+void GameState::changePlayer()
+{
+	m_currentPlayer->drawCard(&m_deck);
+	m_currentPlayer = (m_currentPlayer->getId() == ste_Player1) ? getPlayer2() : getPlayer1();
 }
