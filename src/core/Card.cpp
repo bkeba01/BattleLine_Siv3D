@@ -1,6 +1,6 @@
 ﻿#include "core/Card.h"
 
-Card::Card() : m_color(0), m_value(0) {}
+Card::Card() : m_color(0), m_value(0), m_font(), m_texture(), m_back_texture() {}
 Card::Card(int c, int v,Font font,Texture texture,Texture backtexture) : m_color(c), m_value(v),m_font(font),m_texture(texture),m_back_texture(backtexture) {}
 int Card::getColor() const { return m_color; }
 int Card::getValue() const { return m_value; }

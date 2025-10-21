@@ -2,7 +2,9 @@
 #include "core/HoverManager.h"
 #include "core/DragManager.h"
 #include "core/GameState.h"
-#include "core/Common.h"
+#include "core/Common.h" // 追加
+#include "core/Flag.h"
+#include "core/Slot.h"
 
 Player::Player(int playerId, Deck &deck, Vec2 card_hand_size, Vec2 card_hand_space) 
 	: m_id(playerId) 
@@ -10,7 +12,7 @@ Player::Player(int playerId, Deck &deck, Vec2 card_hand_size, Vec2 card_hand_spa
 	, m_card_hand_space(card_hand_space)
 {
     m_hand.reserve(ste_HandCardMakeNum);
-    for(int i=ste_HandCardMinNum;i<=ste_HandCardMaxNum;i++)
+    for(int i=static_cast<int>(ste_HandCardMinNum);i<=static_cast<int>(ste_HandCardMaxNum);i++)
     {
 		if (auto cardOpt = deck.drawCard())
 		{
@@ -27,7 +29,7 @@ int Player::getId() const { return m_id; }
 
 void Player::drawCard(Deck* deck) 
 {
-    if (m_hand.size() > ste_HandCardMaxNum) { // ste_HandCardMaxNum is 6, so this prevents drawing if hand is 7 or more.
+    if (m_hand.size() > static_cast<size_t>(ste_HandCardMaxNum)) { // ste_HandCardMaxNum is 6, so this prevents drawing if hand is 7 or more.
         return;
     }
 
@@ -45,7 +47,7 @@ const std::vector<Card>& Player::getHand() const { return m_hand; }
 
 void Player::setChoiceCardIndex(int card_index) 
 {
-    if (card_index < ste_HandCardMinNum || card_index >= static_cast<int>(m_hand.size())) 
+    if (card_index < static_cast<int>(ste_HandCardMinNum) || card_index >= static_cast<int>(m_hand.size())) 
     {
         throw std::out_of_range("Invalid card index");
     }
@@ -59,7 +61,7 @@ int Player::getChoiceCardIndex() const
 
 int Player::removeCardFromHand(int index) 
 {
-    if (index < ste_HandCardMinNum || index >= static_cast<int>(m_hand.size())) 
+    if (index < static_cast<int>(ste_HandCardMinNum) || index >= static_cast<int>(m_hand.size())) 
     {
         throw std::out_of_range("Invalid card index");
     }
@@ -100,7 +102,7 @@ void Player::updateDrag(Array<RectF>& cardRects)
 void Player::update()
 {
 	m_cardRects.clear();
-	for (int i = ste_HandCardMinNum; i < m_hand.size(); ++i)
+	for (int i = static_cast<int>(ste_HandCardMinNum); i < m_hand.size(); ++i)
 	{
 		const double centerX = m_hand[i].getCardHandSpace().x + m_hand[i].getCardHandSize().x / 2 * i + (m_hand[i].getCardHandSize().x / 2.0);
 		m_cardRects << RectF{ Arg::center(centerX, m_hand[i].getCardHandSpace().y), m_hand[i].getCardHandSize().x, m_hand[i].getCardHandSize().y };
@@ -121,13 +123,14 @@ void Player::handleInput(GameState& gameState)
 			bool droppedInSlot = false;
 			for (auto& flag : gameState.getFlags())
 			{
-				int emptySlotIndex = flag.checkCardSpace(gameState.getCurrentPlayer());
-				if (emptySlotIndex != ste_SlotCard_NonSpace)
+				Slot& currentSlot = gameState.getSlot(flag.getSlotIndex());
+				int emptySlotIndex = currentSlot.checkCardSpace(gameState.getCurrentPlayer());
+				if (emptySlotIndex != static_cast<int>(ste_SlotCard_NonSpace))
 				{
-const RectF slotRect = flag.getCardSlotRect(gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
+					const RectF slotRect = currentSlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
 					if (slotRect.contains(droppedCardCenter))
 					{
-						flag.placeCard(m_hand[droppedHandIndex], gameState.getCurrentPlayer());
+						currentSlot.placeCard(gameState, m_hand[droppedHandIndex], gameState.getCurrentPlayer());
 						removeCardFromHand(droppedHandIndex);
 						gameState.changePlayer();
 						m_dragManager.clearHover();
@@ -162,7 +165,7 @@ void Player::drawPlayerCards()
 	const auto& hoveredCardIndex = m_dragManager.hoveredIndex();
 	const auto& heldCardIndex = m_dragManager.heldIndex();
 
-	for (int i = ste_HandCardMinNum; i < m_hand.size(); ++i)
+	for (int i = static_cast<int>(ste_HandCardMinNum); i < m_hand.size(); ++i)
 	{
 		bool isHeld = heldCardIndex && (*heldCardIndex == i);
 		bool isHovered = hoveredCardIndex && (*hoveredCardIndex == i);
@@ -196,15 +199,16 @@ void Player::drawHoveredAndHeldCards(GameState& gameState)
 
 		for (auto& flag : gameState.getFlags())
 		{
-			int emptySlotIndex = flag.checkCardSpace(gameState.getCurrentPlayer());
-			if (emptySlotIndex != ste_SlotCard_NonSpace)
+			Slot& currentSlot = gameState.getSlot(flag.getSlotIndex());
+			int emptySlotIndex = currentSlot.checkCardSpace(gameState.getCurrentPlayer());
+			if (emptySlotIndex != static_cast<int>(ste_SlotCard_NonSpace))
 			{
-				const RectF slotRect = flag.getCardSlotRect(gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
-				if (slotRect.contains(draggedCardCenter))
-				{
-					cardSize = flag.getCardSlotSize();
-					break;
-				}
+				const RectF slotRect = currentSlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
+					if (slotRect.contains(draggedCardCenter))
+					{
+						cardSize = currentSlot.getCardSlotSize();
+						break;
+					}
 			}
 		}
 

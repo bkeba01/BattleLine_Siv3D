@@ -1,15 +1,23 @@
 ﻿#include "core/GameState.h"
 #include "core/Common.h"
+#include "core/Flag.h"
+#include "core/Slot.h"
 int checkSerialValue(int playerindex,int flagindex,std::vector<Flag>& m_flags,int serial_count=0);
 
 GameState::GameState(Player player1, Player player2, Deck deck)
     : m_player1(player1), m_player2(player2), m_deck(deck)
 {
     m_flags.reserve(ste_FlagMakeNum);
+	m_slots.reserve(ste_FlagMakeNum);
+
     for(int i=ste_FlagMinNum;i<=ste_FlagMaxNum;++i)
     {
         m_flags.emplace_back(i);
+		m_slots.emplace_back();
+		m_flags[i].setSlotIndex(i);
+		m_slots[i].setFlagIndex(i);
     }
+
 }
 
 Player* GameState::getPlayer1() { return &m_player1; }
@@ -20,9 +28,23 @@ Deck* GameState::getDeck() { return &m_deck; }
 
 std::vector<Flag>& GameState::getFlags() { return m_flags; }
 
-void GameState::setCurrentPlayer(Player* player) { m_currentPlayer = player; }
+Slot& GameState::getSlot(int flagIndex) {
+    return m_slots[flagIndex];
+}
+
+Flag& GameState::getFlag(int slotIndex) {
+    return m_flags[slotIndex];
+}
+
+void GameState::setCurrentPlayer(Player* player)
+{
+	m_currentPlayer = player;
+	m_opponentPlayer = (m_currentPlayer->getId() == ste_Player1) ? getPlayer2() : getPlayer1();
+}
 
 Player* GameState::getCurrentPlayer() const { return m_currentPlayer; }
+
+Player* GameState::getOpponentPlayer() const { return m_opponentPlayer; }
 
 bool GameState::getFinished() { return finished; }
 
@@ -102,4 +124,5 @@ void GameState::changePlayer()
 {
 	m_currentPlayer->drawCard(&m_deck);
 	m_currentPlayer = (m_currentPlayer->getId() == ste_Player1) ? getPlayer2() : getPlayer1();
+	m_opponentPlayer = (m_currentPlayer->getId() == ste_Player1) ? getPlayer2() : getPlayer1();
 }

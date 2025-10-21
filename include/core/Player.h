@@ -47,7 +47,7 @@ class Player
 		void draw(GameState& gameState);
 		void drawBacks() const;
 
-		void drawopponentBacks() const;
+		//void drawopponentBacks() const;
 
 	private:
 		void drawPlayerCards();
