@@ -33,11 +33,12 @@ class GameState {
         Player* getPlayer1();
 		Player* getPlayer2();
         Deck* getDeck();
-        		std::vector<Flag>& getFlags();
-        		Slot& getSlot(int flagIndex);
-        		Flag& getFlag(int slotIndex);
+        std::vector<Flag>& getFlags();
+        Slot& getSlot(int flagIndex);
+        Flag& getFlag(int slotIndex);
         
-                void setCurrentPlayer(Player* player);        Player* getCurrentPlayer()const;
+        void setCurrentPlayer(Player* player);
+	    Player* getCurrentPlayer()const;
 
         bool getFinished();
         void autoSetFinished();

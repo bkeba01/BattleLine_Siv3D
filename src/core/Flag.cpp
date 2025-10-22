@@ -51,7 +51,7 @@ void Flag::checkRoleStatus(GameState& gameState, Player* currentPlayer) // ã‚·ã‚
     {
         role[playerIndex]=ste_Straight;
     }
-    else if(currentSlot.checkCardSpace(currentPlayer)!= static_cast<int>(ste_SlotCard_NonSpace))
+    else if(currentSlot.checkCardSpace(currentPlayer)== static_cast<int>(ste_SlotCard_NonSpace))
     {
 		role[playerIndex]=ste_NoneRole;
     }
@@ -125,3 +125,19 @@ Texture Flag::getTexture()
 	return m_texture;
 }
 
+void Flag::drawWinnerFlag(GameState& gamestate)
+{
+	if (m_take_flag == static_cast<int>(ste_NonePlayer))
+	{
+		return;
+		m_texture.drawAt(m_draw_position.x,m_draw_position.y);
+	}
+	else if (m_take_flag== gamestate.getCurrentPlayer()->getId())
+	{
+		m_texture.drawAt(m_draw_position.x, m_draw_position.y+(gamestate.getSlot(m_position).getCardSlotSize().y));
+	}
+	else if (m_take_flag == gamestate.getOpponentPlayer()->getId())
+	{
+		m_texture.drawAt(m_draw_position.x, m_draw_position.y - (gamestate.getSlot(m_position).getCardSlotSize().y));
+	}
+}

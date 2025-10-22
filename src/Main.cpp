@@ -28,6 +28,7 @@ std::unique_ptr<GameState> initializeGame(HashTable<String,Vec2> object_pos)
 
 		Vec2 flag_position = { flag_x, object_pos[U"flag_space_size"].y };
 		gameState->getSlot(flag).setFlagInitPosition(flag_position);
+		gameState->getFlags()[flag].setPos(flag_position);
 	}
 
 	
@@ -75,18 +76,24 @@ void Main()
 
 	while (System::Update())
 	{
+		gameState->autoSetFinished();
+		if (gameState->getFinished())
+		{
+			break;
+		}
 		
 		gameState->getDeck()->drawDeck();
 		for (int flag = 0; flag < 9; flag++)
 		{
-			
-			float flag_between_size = (object_pos[U"flag_space_size"].x - 9 * gameState->getFlags()[flag].getTexture().width())/10;
-			float flag_x = object_pos[U"card_slot_size"].x + flag_between_size+(gameState->getFlags()[flag].getTexture().width()/2) +flag* (gameState->getFlags()[flag].getTexture().width()+ flag_between_size) ;
-			
-			Vec2 flag_position = { flag_x, object_pos[U"flag_space_size"].y};
-			gameState->getFlags()[flag].setPos(flag_position);
-			gameState->getFlags()[flag].draw();
 			gameState->getSlot(flag).slotdraw(*gameState, gameState->getCurrentPlayer()->getId());
+			if (gameState->getFlags()[flag].getFlagStatus() == ste_NonePlayer)
+			{
+				gameState->getFlags()[flag].draw();
+			}
+			else
+			{
+				gameState->getFlags()[flag].drawWinnerFlag(*gameState);
+			}
 		}
 
 		// Update visuals for both players
@@ -95,6 +102,8 @@ void Main()
 
 		// Handle input for the current player
 		gameState->getCurrentPlayer()->handleInput(*gameState);
+		gameState->autoSetFinished();
+
 
 		// Define hand positions
 		const Vec2 player_hand_pos = object_pos[U"card_hand_space"];
@@ -111,4 +120,13 @@ void Main()
 		currentPlayer->draw(*gameState);
 		opponentPlayer->drawBacks();
 	}
+	const int winner = gameState->getWinner();
+	const String winnerText = U"Winner: Player " + ToString(winner + 1);
+	Font font{ 60, Typeface::Bold };
+	while(System::Update())
+	{
+		Scene::SetBackground(ColorF{ 0.3, 0.6, 0.4 });
+		font(winnerText).drawAt(Scene::Center(), Palette::White);
+	}
+	
 }

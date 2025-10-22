@@ -50,6 +50,11 @@ bool GameState::getFinished() { return finished; }
 
 void GameState::autoSetFinished()
 {
+    for(int i=ste_PlayerMin;i<=ste_PlayerMax;++i)
+    {
+        m_player_score[i]= ste_Flag_NonStatus;
+    }
+
     for(int playerindex=ste_PlayerMin;playerindex<=ste_PlayerMax;++playerindex)
     {
         for(int flagindex=ste_FlagMinNum;flagindex<=ste_FlagMaxNum;++flagindex)
@@ -83,10 +88,6 @@ void GameState::autoSetFinished()
     {
         finished=false;
         m_winner=NONE;
-    }
-    for(int i=ste_PlayerMin;i<=ste_PlayerMax;++i)
-    {
-        m_player_score[i]= ste_Flag_NonStatus;
     }
 }
 

@@ -36,7 +36,7 @@ class Flag {
 		Texture getTexture();
 		void setSlotIndex(int index) { m_slotIndex = index; };
 		int getSlotIndex() const { return m_slotIndex; };
-
+		void drawWinnerFlag(GameState&);
 };
 
 #endif // FLAG_H
