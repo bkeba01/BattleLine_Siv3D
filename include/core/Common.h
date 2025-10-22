@@ -52,3 +52,18 @@ enum ID_Flag
 	ste_FlagWinSerialThreshold = 3,
 	ste_Flag_NonStatus = 0
 };
+enum SpecialCardType
+{
+	ste_Wildcard = 0,
+	ste_StealCard = 1,
+	ste_DestroyCard = 2,
+	ste_SwapCard = 3,
+	ste_DoubleValue = 4,
+	ste_SpecialCardTypeCount = 5
+};
+enum ID_SpecialDeck
+{
+	ste_SpecialDeckSize = 10,
+	ste_NoneSpecialCard = -1,
+	ste_MaxSpecialCardsInHand = 3
+};

@@ -45,6 +45,36 @@ void Player::drawCard(Deck* deck)
 
 const std::vector<Card>& Player::getHand() const { return m_hand; }
 
+void Player::drawSpecialCard(SpecialDeck* deck)
+{
+	if (m_special_hand.size() >= static_cast<size_t>(ste_MaxSpecialCardsInHand)) {
+		return;
+	}
+
+	if (auto cardOpt = deck->drawCard())
+	{
+		SpecialCard& card = *cardOpt;
+		card.setCardHandSize(m_card_hand_size);
+		card.setCardHandSpace(m_card_hand_space);
+		m_special_hand.push_back(card);
+	}
+}
+
+const std::vector<SpecialCard>& Player::getSpecialHand() const
+{
+	return m_special_hand;
+}
+
+int Player::removeSpecialCardFromHand(int index)
+{
+	if (index < 0 || index >= static_cast<int>(m_special_hand.size()))
+	{
+		throw std::out_of_range("Invalid special card index");
+	}
+	m_special_hand.erase(m_special_hand.begin() + index);
+	return 0;
+}
+
 void Player::setChoiceCardIndex(int card_index) 
 {
     if (card_index < static_cast<int>(ste_HandCardMinNum) || card_index >= static_cast<int>(m_hand.size())) 
@@ -132,7 +162,7 @@ void Player::handleInput(GameState& gameState)
 					{
 						currentSlot.placeCard(gameState, m_hand[droppedHandIndex], gameState.getCurrentPlayer());
 						removeCardFromHand(droppedHandIndex);
-						gameState.changePlayer();
+						gameState.setWaitingForDeckChoice(true);
 						m_dragManager.clearHover();
 						droppedInSlot = true;
 						break;
@@ -140,6 +170,26 @@ void Player::handleInput(GameState& gameState)
 				}
 			}
 		}
+	}
+}
+
+void Player::handleDeckChoice(GameState& gameState)
+{
+	if (!gameState.isWaitingForDeckChoice()) {
+		return;
+	}
+
+	// 通常デッキのクリック判定
+	if (gameState.getDeck()->getRect().leftClicked())
+	{
+		gameState.drawFromNormalDeck();
+		gameState.changePlayer();
+	}
+	// 特殊デッキのクリック判定
+	else if (gameState.getSpecialDeck()->getRect().leftClicked())
+	{
+		gameState.drawFromSpecialDeck();
+		gameState.changePlayer();
 	}
 }
 
@@ -153,9 +203,13 @@ void Player::drawBacks() const
 {
 	for (int i = 0; i < m_hand.size(); ++i)
 	{
+		// Calculate rect for opponent's cards
+		const double centerX = m_card_hand_space.x + m_card_hand_size.x / 2 * i + (m_card_hand_size.x / 2.0);
+		const RectF cardRect{ Arg::center(centerX, m_card_hand_space.y), m_card_hand_size.x, m_card_hand_size.y };
+
 		// Create a mutable copy to set the rect
 		Card card = m_hand[i];
-		card.setRect(m_cardRects[i]);
+		card.setRect(cardRect);
 		card.drawBack();
 	}
 }

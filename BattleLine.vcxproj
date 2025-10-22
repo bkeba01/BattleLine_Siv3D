@@ -324,6 +324,8 @@
     <ClInclude Include="include\core\Card.h" />
     <ClInclude Include="include\core\Common.h" />
     <ClInclude Include="include\core\Deck.h" />
+    <ClInclude Include="include\core\SpecialCard.h" />
+    <ClInclude Include="include\core\SpecialDeck.h" />
     <ClInclude Include="include\core\DragManager.h" />
     <ClInclude Include="include\core\Flag.h" />
     <ClInclude Include="include\core\GameState.h" />
@@ -421,6 +423,8 @@
   <ItemGroup>
     <ClCompile Include="src\core\Card.cpp" />
     <ClCompile Include="src\core\Deck.cpp" />
+    <ClCompile Include="src\core\SpecialCard.cpp" />
+    <ClCompile Include="src\core\SpecialDeck.cpp" />
     <ClCompile Include="src\core\Flag.cpp" />
     <ClCompile Include="src\core\GameState.cpp" />
     <ClCompile Include="src\core\Player.cpp" />

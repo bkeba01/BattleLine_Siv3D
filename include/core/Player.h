@@ -6,6 +6,8 @@
 #include <vector>
 #include "Card.h"
 #include "Deck.h"
+#include "SpecialDeck.h"
+#include "SpecialCard.h"
 #include "DragManager.h"
 #include <optional>
 class GameState;
@@ -15,10 +17,12 @@ class Player
     private:
         int m_id;
         std::vector<Card> m_hand;
-        int m_card_index; 
+        std::vector<SpecialCard> m_special_hand;
+        int m_card_index;
         bool m_hand_empty; // 手札が空かどうかを保存する変数
         DragManager m_dragManager;
 		Array<RectF> m_cardRects;
+		Array<RectF> m_specialCardRects;
 		Array<RectF> m_opponentCardRects;
 		Vec2 m_card_hand_size;
 		Vec2 m_card_hand_space;
@@ -28,12 +32,15 @@ class Player
         
         int getId() const;
         void drawCard(Deck* deck);
+        void drawSpecialCard(SpecialDeck* deck);
         const std::vector<Card>& getHand() const;
+        const std::vector<SpecialCard>& getSpecialHand() const;
         void setChoiceCardIndex(int card_index);
 
         int getChoiceCardIndex() const;
 
         int removeCardFromHand(int index);
+        int removeSpecialCardFromHand(int index);
         void setHandIsEmpty(bool empty);
         bool getHandIsEmpty() const;
 
@@ -44,6 +51,7 @@ class Player
 
 		void update();
 		void handleInput(GameState& gameState);
+		void handleDeckChoice(GameState& gameState);
 		void draw(GameState& gameState);
 		void drawBacks() const;
 

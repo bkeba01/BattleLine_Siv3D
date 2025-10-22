@@ -4,8 +4,8 @@
 #include "core/Slot.h"
 int checkSerialValue(int playerindex,int flagindex,std::vector<Flag>& m_flags,int serial_count=0);
 
-GameState::GameState(Player player1, Player player2, Deck deck)
-    : m_player1(player1), m_player2(player2), m_deck(deck)
+GameState::GameState(Player player1, Player player2, Deck deck, SpecialDeck specialDeck)
+    : m_player1(player1), m_player2(player2), m_deck(deck), m_special_deck(specialDeck)
 {
     m_flags.reserve(ste_FlagMakeNum);
 	m_slots.reserve(ste_FlagMakeNum);
@@ -25,6 +25,8 @@ Player* GameState::getPlayer1() { return &m_player1; }
 Player* GameState::getPlayer2() { return &m_player2; }
 
 Deck* GameState::getDeck() { return &m_deck; }
+
+SpecialDeck* GameState::getSpecialDeck() { return &m_special_deck; }
 
 std::vector<Flag>& GameState::getFlags() { return m_flags; }
 
@@ -123,7 +125,29 @@ int GameState::getWinner()
 }
 void GameState::changePlayer()
 {
-	m_currentPlayer->drawCard(&m_deck);
+	// カードを引く処理は削除（山札選択後に個別に引く）
 	m_currentPlayer = (m_currentPlayer->getId() == ste_Player1) ? getPlayer2() : getPlayer1();
 	m_opponentPlayer = (m_currentPlayer->getId() == ste_Player1) ? getPlayer2() : getPlayer1();
+}
+
+bool GameState::isWaitingForDeckChoice() const
+{
+	return m_waiting_for_deck_choice;
+}
+
+void GameState::setWaitingForDeckChoice(bool waiting)
+{
+	m_waiting_for_deck_choice = waiting;
+}
+
+void GameState::drawFromNormalDeck()
+{
+	m_currentPlayer->drawCard(&m_deck);
+	m_waiting_for_deck_choice = false;
+}
+
+void GameState::drawFromSpecialDeck()
+{
+	m_currentPlayer->drawSpecialCard(&m_special_deck);
+	m_waiting_for_deck_choice = false;
 }

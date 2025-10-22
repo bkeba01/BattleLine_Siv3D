@@ -2,6 +2,7 @@
 #include <memory>
 #include "core/Card.h"
 #include "core/Deck.h"
+#include "core/SpecialDeck.h"
 #include "core/Player.h"
 #include "core/GameState.h"
 #include "core/Flag.h"
@@ -13,9 +14,23 @@ std::unique_ptr<GameState> initializeGame(HashTable<String,Vec2> object_pos)
 	Deck deck(Font{ 30, Typeface::Bold }, Texture{ U"🃏"_emoji },Texture{U"⚔"_emoji});
 	deck.setRect(deck_card);
 	deck.shuffle();
+
+	// 特殊デッキの初期化（右端）
+	RectF special_deck_card{
+		Arg::center(
+			Scene::Width() - (object_pos[U"card_slot_size"].x / 2) - 10,
+			Scene::Height() / 2
+		),
+		object_pos[U"card_slot_size"].x,
+		object_pos[U"card_slot_size"].y
+	};
+	SpecialDeck specialDeck(Font{ 30, Typeface::Bold }, Texture{ U"✨"_emoji }, Texture{U"🎴"_emoji});
+	specialDeck.setRect(special_deck_card);
+	specialDeck.shuffle();
+
 	Player player1(0, deck, object_pos[U"card_hand_size"], object_pos[U"card_hand_space"]);
 	Player player2(1, deck, object_pos[U"card_hand_size"], object_pos[U"card_opponent_hand_space"]);
-	auto gameState = std::make_unique<GameState>(player1, player2, deck);
+	auto gameState = std::make_unique<GameState>(player1, player2, deck, specialDeck);
 	gameState->setCurrentPlayer(gameState->getPlayer1());
 	const Texture Flag_texture{ Image{ U"C:\\BattleLine\\BattleLine\\lib\\img\\ball_red.png" }.scaled(0.2) };
 
@@ -30,10 +45,6 @@ std::unique_ptr<GameState> initializeGame(HashTable<String,Vec2> object_pos)
 		gameState->getSlot(flag).setFlagInitPosition(flag_position);
 		gameState->getFlags()[flag].setPos(flag_position);
 	}
-
-	
-
-
 
 	return gameState;
 }
@@ -57,6 +68,7 @@ HashTable<String, Vec2> initializePos()
 		{U"card_hand_size",Vec2(card_hand_width,card_hand_height)},
 		{U"card_slot_size",Vec2(card_slot_width,card_slot_height)},
 		{U"card_hand_space",Vec2(card_hand_x_space,player_hand_y)},
+		{U"card_opponent_hand_space",Vec2(card_hand_x_space,opponent_hand_y)},
 		{U"flag_space_size",Vec2(flag_space_size_x,flag_y)}
 	};
 
@@ -73,7 +85,7 @@ void Main()
 	// Initial update to set card positions
 	gameState->getPlayer1()->update();
 	gameState->getPlayer2()->update();
-
+	Font instructionFont{ 24, Typeface::Bold };
 	while (System::Update())
 	{
 		gameState->autoSetFinished();
@@ -81,8 +93,10 @@ void Main()
 		{
 			break;
 		}
-		
+
 		gameState->getDeck()->drawDeck();
+		gameState->getSpecialDeck()->drawDeck();
+
 		for (int flag = 0; flag < 9; flag++)
 		{
 			gameState->getSlot(flag).slotdraw(*gameState, gameState->getCurrentPlayer()->getId());
@@ -100,8 +114,32 @@ void Main()
 		gameState->getPlayer1()->update();
 		gameState->getPlayer2()->update();
 
-		// Handle input for the current player
-		gameState->getCurrentPlayer()->handleInput(*gameState);
+		// 山札選択待ちかどうかで処理を分岐
+		if (gameState->isWaitingForDeckChoice())
+		{
+			// 視覚的フィードバック：指示テキスト表示
+			
+			instructionFont(U"山札を選んでカードを引いてください").drawAt(Scene::Center().movedBy(0, -250), Palette::Yellow);
+
+			// 視覚的フィードバック：デッキをホバー時にハイライト
+			if (gameState->getDeck()->getRect().mouseOver())
+			{
+				gameState->getDeck()->getRect().drawFrame(5, Palette::Yellow);
+			}
+			if (gameState->getSpecialDeck()->getRect().mouseOver())
+			{
+				gameState->getSpecialDeck()->getRect().drawFrame(5, Palette::Gold);
+			}
+
+			// 山札選択の入力処理
+			gameState->getCurrentPlayer()->handleDeckChoice(*gameState);
+		}
+		else
+		{
+			// 通常のカード配置入力処理
+			gameState->getCurrentPlayer()->handleInput(*gameState);
+		}
+
 		gameState->autoSetFinished();
 
 
