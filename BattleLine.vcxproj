@@ -49,8 +49,8 @@
     <IntDir>$(SolutionDir)Intermediate\$(ProjectName)\Debug\Intermediate\</IntDir>
     <TargetName>$(ProjectName)(debug)</TargetName>
     <LocalDebuggerWorkingDirectory>$(ProjectDir)App</LocalDebuggerWorkingDirectory>
-    <IncludePath>$(SIV3D_0_6_16)\include;$(SIV3D_0_6_16)\include\ThirdParty;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SIV3D_0_6_16)\lib\Windows;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SIV3D_0_6_16)\include;$(SIV3D_0_6_16)\include\ThirdParty;C:\OnlinePlay\RealTime\photon-windows-sdk_v5-0-13-2\Photon-Windows-Sdk_v5-0-13-2;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SIV3D_0_6_16)\lib\Windows;C:\OnlinePlay\RealTime\photon-windows-sdk_v5-0-13-2\Photon-Windows-Sdk_v5-0-13-2;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -301,6 +301,7 @@
     <None Include="App\example\toml\config.toml" />
     <None Include="App\example\toml\test.toml" />
     <None Include="App\example\zip\zip_test.zip" />
+    <None Include="src\PHOTON_APP_ID.SECRET" />
   </ItemGroup>
   <ItemGroup>
     <Media Include="App\example\shot.mp3" />
@@ -330,6 +331,7 @@
     <ClInclude Include="include\core\Main.h" />
     <ClInclude Include="include\core\Player.h" />
     <ClInclude Include="include\core\Slot.h" />
+    <ClInclude Include="src\Multiplayer_Photon.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App\example\obj\blacksmith.obj">
@@ -424,6 +426,7 @@
     <ClCompile Include="src\core\Player.cpp" />
     <ClCompile Include="src\core\Slot.cpp" />
     <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\Multiplayer_Photon.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

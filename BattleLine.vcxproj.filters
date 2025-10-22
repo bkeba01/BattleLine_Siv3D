@@ -763,6 +763,9 @@
     <None Include="App\engine\shader\glsl\quad_warp.frag">
       <Filter>Resource Files\engine\shader\glsl</Filter>
     </None>
+    <None Include="src\PHOTON_APP_ID.SECRET">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Media Include="App\example\test.mp3">
@@ -834,6 +837,9 @@
     <ClInclude Include="include\core\Slot.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Multiplayer_Photon.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Main.cpp">
@@ -855,6 +861,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\core\Slot.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Multiplayer_Photon.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
