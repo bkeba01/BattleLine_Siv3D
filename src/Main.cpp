@@ -52,7 +52,7 @@ HashTable<String, Vec2> initializePos()
 {
 	Scene::SetBackground(ColorF{ 0.3, 0.6, 0.4 });
 	Window::SetTitle(U"Battle Line");
-	Window::Resize(1000, 900);
+	Window::Resize(1200, 900);
 	
 
 	const float card_hand_width = 120;
@@ -62,7 +62,7 @@ HashTable<String, Vec2> initializePos()
 	const float card_hand_x_space = (Scene::Width() - (card_hand_width / 2 * 7)) / 2;
 	const float player_hand_y = Scene::Height() * 0.9;
 	const float opponent_hand_y = Scene::Height() * 0.1;
-	const float flag_space_size_x = Scene::Width() - (card_slot_width);
+	const float flag_space_size_x = Scene::Width() - 2*(card_slot_width);
 	const float flag_y = Scene::Height() / 2;
 	HashTable<String, Vec2>object_pos = {
 		{U"card_hand_size",Vec2(card_hand_width,card_hand_height)},
