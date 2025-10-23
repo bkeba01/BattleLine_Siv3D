@@ -840,6 +840,15 @@
     <ClInclude Include="src\Multiplayer_Photon.hpp">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\core\SpecialCard.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\core\SpecialDeck.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\core\CardBase.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Main.cpp">
@@ -864,6 +873,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Multiplayer_Photon.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\SpecialCard.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\SpecialDeck.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\CardBase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

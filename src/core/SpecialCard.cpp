@@ -1,20 +1,20 @@
-#include "core/SpecialCard.h"
+﻿#include "core/SpecialCard.h"
 
 SpecialCard::SpecialCard()
-    : m_type(static_cast<SpecialCardType>(ste_NoneSpecialCard))
+    : CardBase()
+    , m_type(static_cast<SpecialCardType>(ste_NoneSpecialCard))
     , m_name(U"")
     , m_description(U"")
 {
 }
 
 SpecialCard::SpecialCard(SpecialCardType type, const String& name, const String& description,
-                         const Font& font, const Texture& texture, const Texture& backtexture)
-    : m_type(type)
+                         const Font& font, const Texture& texture, const Texture& backtexture,const Font& smallfont)
+    : CardBase(font, texture, backtexture)
+    , m_type(type)
     , m_name(name)
     , m_description(description)
-    , m_font(font)
-    , m_texture(texture)
-    , m_back_texture(backtexture)
+	, m_smallFont(smallfont)
 {
 }
 
@@ -30,9 +30,7 @@ void SpecialCard::draw() const
         m_texture.resized(m_rect.w * 0.4).drawAt(m_rect.center().movedBy(0, -m_rect.h * 0.15));
     }
 
-    // カード名（小さめのフォント）
-    Font smallFont{ 12, Typeface::Bold };
-    smallFont(m_name).drawAt(m_rect.center().movedBy(0, m_rect.h * 0.25), Palette::Black);
+    m_smallFont(m_name).drawAt(m_rect.center().movedBy(0, m_rect.h * 0.25), Palette::Black);
 }
 
 void SpecialCard::drawBack() const

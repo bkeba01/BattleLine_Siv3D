@@ -2,12 +2,12 @@
 #include "core/HoverManager.h"
 #include "core/DragManager.h"
 #include "core/GameState.h"
-#include "core/Common.h" // 追加
+#include "core/Common.h"
 #include "core/Flag.h"
 #include "core/Slot.h"
 
-Player::Player(int playerId, Deck &deck, Vec2 card_hand_size, Vec2 card_hand_space) 
-	: m_id(playerId) 
+Player::Player(int playerId, Deck &deck, Vec2 card_hand_size, Vec2 card_hand_space)
+	: m_id(playerId)
 	, m_card_hand_size(card_hand_size)
 	, m_card_hand_space(card_hand_space)
 {
@@ -19,7 +19,7 @@ Player::Player(int playerId, Deck &deck, Vec2 card_hand_size, Vec2 card_hand_spa
 			Card& card = *cardOpt;
 			card.setCardHandSize(card_hand_size);
 			card.setCardHandSpace(card_hand_space);
-			m_hand.push_back(card);
+			m_hand.push_back(std::make_shared<Card>(card));
 		}
     }
     m_hand_empty=false;
@@ -27,7 +27,7 @@ Player::Player(int playerId, Deck &deck, Vec2 card_hand_size, Vec2 card_hand_spa
 
 int Player::getId() const { return m_id; }
 
-void Player::drawCard(Deck* deck) 
+void Player::drawCard(Deck* deck)
 {
     if (m_hand.size() > static_cast<size_t>(ste_HandCardMaxNum)) { // ste_HandCardMaxNum is 6, so this prevents drawing if hand is 7 or more.
         return;
@@ -38,16 +38,16 @@ void Player::drawCard(Deck* deck)
         Card& card = *cardOpt;
         card.setCardHandSize(m_card_hand_size);
         card.setCardHandSpace(m_card_hand_space);
-        m_hand.push_back(card);
+        m_hand.push_back(std::make_shared<Card>(card));
     }
     // If cardOpt is nullopt (deck is empty), do nothing.
 }
 
-const std::vector<Card>& Player::getHand() const { return m_hand; }
+const std::vector<std::shared_ptr<CardBase>>& Player::getHand() const { return m_hand; }
 
 void Player::drawSpecialCard(SpecialDeck* deck)
 {
-	if (m_special_hand.size() >= static_cast<size_t>(ste_MaxSpecialCardsInHand)) {
+	if (m_hand.size() > static_cast<size_t>(ste_HandCardMaxNum)) {
 		return;
 	}
 
@@ -56,23 +56,8 @@ void Player::drawSpecialCard(SpecialDeck* deck)
 		SpecialCard& card = *cardOpt;
 		card.setCardHandSize(m_card_hand_size);
 		card.setCardHandSpace(m_card_hand_space);
-		m_special_hand.push_back(card);
+		m_hand.push_back(std::make_shared<SpecialCard>(card));
 	}
-}
-
-const std::vector<SpecialCard>& Player::getSpecialHand() const
-{
-	return m_special_hand;
-}
-
-int Player::removeSpecialCardFromHand(int index)
-{
-	if (index < 0 || index >= static_cast<int>(m_special_hand.size()))
-	{
-		throw std::out_of_range("Invalid special card index");
-	}
-	m_special_hand.erase(m_special_hand.begin() + index);
-	return 0;
 }
 
 void Player::setChoiceCardIndex(int card_index) 
@@ -119,7 +104,7 @@ void Player::setHandSpace(Vec2 space)
 	m_card_hand_space = space;
 	for (auto& card : m_hand)
 	{
-		card.setCardHandSpace(space);
+		card->setCardHandSpace(space);
 	}
 }
 
@@ -134,8 +119,8 @@ void Player::update()
 	m_cardRects.clear();
 	for (int i = static_cast<int>(ste_HandCardMinNum); i < m_hand.size(); ++i)
 	{
-		const double centerX = m_hand[i].getCardHandSpace().x + m_hand[i].getCardHandSize().x / 2 * i + (m_hand[i].getCardHandSize().x / 2.0);
-		m_cardRects << RectF{ Arg::center(centerX, m_hand[i].getCardHandSpace().y), m_hand[i].getCardHandSize().x, m_hand[i].getCardHandSize().y };
+		const double centerX = m_hand[i]->getCardHandSpace().x + m_hand[i]->getCardHandSize().x / 2 * i + (m_hand[i]->getCardHandSize().x / 2.0);
+		m_cardRects << RectF{ Arg::center(centerX, m_hand[i]->getCardHandSpace().y), m_hand[i]->getCardHandSize().x, m_hand[i]->getCardHandSize().y };
 	}
 }
 
@@ -148,7 +133,7 @@ void Player::handleInput(GameState& gameState)
 		if (const auto droppedIndex = m_dragManager.droppedIndex())
 		{
 			const int droppedHandIndex = *droppedIndex;
-			const Vec2 droppedCardCenter = m_hand[droppedHandIndex].getRect().center();
+			const Vec2 droppedCardCenter = m_hand[droppedHandIndex]->getRect().center();
 
 			bool droppedInSlot = false;
 			for (auto& flag : gameState.getFlags())
@@ -160,12 +145,16 @@ void Player::handleInput(GameState& gameState)
 					const RectF slotRect = currentSlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
 					if (slotRect.contains(droppedCardCenter))
 					{
-						currentSlot.placeCard(gameState, m_hand[droppedHandIndex], gameState.getCurrentPlayer());
-						removeCardFromHand(droppedHandIndex);
-						gameState.setWaitingForDeckChoice(true);
-						m_dragManager.clearHover();
-						droppedInSlot = true;
-						break;
+						// CardBaseポインタからCardにダウンキャストして渡す
+						if (auto cardPtr = std::dynamic_pointer_cast<Card>(m_hand[droppedHandIndex]))
+						{
+							currentSlot.placeCard(gameState, *cardPtr, gameState.getCurrentPlayer());
+							removeCardFromHand(droppedHandIndex);
+							gameState.setWaitingForDeckChoice(true);
+							m_dragManager.clearHover();
+							droppedInSlot = true;
+							break;
+						}
 					}
 				}
 			}
@@ -199,7 +188,7 @@ void Player::draw(GameState& gameState)
 	drawHoveredAndHeldCards(gameState);
 }
 
-void Player::drawBacks() const
+void Player::drawBacks()
 {
 	for (int i = 0; i < m_hand.size(); ++i)
 	{
@@ -207,10 +196,8 @@ void Player::drawBacks() const
 		const double centerX = m_card_hand_space.x + m_card_hand_size.x / 2 * i + (m_card_hand_size.x / 2.0);
 		const RectF cardRect{ Arg::center(centerX, m_card_hand_space.y), m_card_hand_size.x, m_card_hand_size.y };
 
-		// Create a mutable copy to set the rect
-		Card card = m_hand[i];
-		card.setRect(cardRect);
-		card.drawBack();
+		m_hand[i]->setRect(cardRect);
+		m_hand[i]->drawBack();
 	}
 }
 
@@ -226,8 +213,8 @@ void Player::drawPlayerCards()
 
 		if (not isHeld && not isHovered)
 		{
-			m_hand[i].setRect(m_cardRects[i]);
-			m_hand[i].draw();
+			m_hand[i]->setRect(m_cardRects[i]);
+			m_hand[i]->draw();
 		}
 	}
 }
@@ -241,13 +228,13 @@ void Player::drawHoveredAndHeldCards(GameState& gameState)
 	{
 		const int i = *currentHoveredRectsIndex;
 		const RectF enlargedCard = m_cardRects[i].scaledAt(m_cardRects[i].center(), 1.15).moveBy(0, -20);
-		m_hand[i].setRect(enlargedCard);
-		m_hand[i].draw();
+		m_hand[i]->setRect(enlargedCard);
+		m_hand[i]->draw();
 	}
 
 	if (currentHeldRectsIndex)
 	{
-		Vec2 cardSize = m_hand[*currentHeldRectsIndex].getCardHandSize();
+		Vec2 cardSize = m_hand[*currentHeldRectsIndex]->getCardHandSize();
 		const RectF originalDraggingRect = m_dragManager.getDraggingRect(cardSize.x, cardSize.y);
 		const Vec2 draggedCardCenter = originalDraggingRect.center();
 
@@ -266,7 +253,7 @@ void Player::drawHoveredAndHeldCards(GameState& gameState)
 			}
 		}
 
-		m_hand[*currentHeldRectsIndex].setRect(m_dragManager.getDraggingRect(cardSize.x, cardSize.y));
-		m_hand[*currentHeldRectsIndex].draw();
+		m_hand[*currentHeldRectsIndex]->setRect(m_dragManager.getDraggingRect(cardSize.x, cardSize.y));
+		m_hand[*currentHeldRectsIndex]->draw();
 	}
 }

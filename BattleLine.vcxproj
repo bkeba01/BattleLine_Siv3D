@@ -67,7 +67,6 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;_ENABLE_EXTENDED_ALIGNED_STORAGE;_SILENCE_CXX20_CISO646_REMOVED_WARNING;_SILENCE_ALL_CXX23_DEPRECATION_WARNINGS;_SILENCE_ALL_MS_EXT_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>26451;26812;%(DisableSpecificWarnings)</DisableSpecificWarnings>
@@ -322,6 +321,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\core\Card.h" />
+    <ClInclude Include="include\core\CardBase.h" />
     <ClInclude Include="include\core\Common.h" />
     <ClInclude Include="include\core\Deck.h" />
     <ClInclude Include="include\core\SpecialCard.h" />
@@ -422,6 +422,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\core\Card.cpp" />
+    <ClCompile Include="src\core\CardBase.cpp" />
     <ClCompile Include="src\core\Deck.cpp" />
     <ClCompile Include="src\core\SpecialCard.cpp" />
     <ClCompile Include="src\core\SpecialDeck.cpp" />

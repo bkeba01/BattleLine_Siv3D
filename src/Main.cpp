@@ -24,7 +24,7 @@ std::unique_ptr<GameState> initializeGame(HashTable<String,Vec2> object_pos)
 		object_pos[U"card_slot_size"].x,
 		object_pos[U"card_slot_size"].y
 	};
-	SpecialDeck specialDeck(Font{ 30, Typeface::Bold }, Texture{ U"✨"_emoji }, Texture{U"🎴"_emoji});
+	SpecialDeck specialDeck(Font{ 30, Typeface::Bold }, Texture{ U"✨"_emoji }, Texture{U"🎴"_emoji},Font{ 12, Typeface::Bold });
 	specialDeck.setRect(special_deck_card);
 	specialDeck.shuffle();
 

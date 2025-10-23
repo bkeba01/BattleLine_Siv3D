@@ -1,4 +1,4 @@
-#ifndef SPECIALDECK_H
+﻿#ifndef SPECIALDECK_H
 #define SPECIALDECK_H
 
 #include <vector>
@@ -15,7 +15,7 @@ class SpecialDeck {
         Texture m_back_texture;
 
     public:
-        SpecialDeck(const Font& font, const Texture& texture, const Texture& backtexture);
+        SpecialDeck(const Font& font, const Texture& texture, const Texture& backtexture,const Font& smallfont);
         void shuffle();
         std::optional<SpecialCard> drawCard();
         bool isEmpty() const;

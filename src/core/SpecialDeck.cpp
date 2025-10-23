@@ -3,7 +3,7 @@
 #include <random>
 #include "core/Common.h"
 
-SpecialDeck::SpecialDeck(const Font& font, const Texture& texture, const Texture& backtexture)
+SpecialDeck::SpecialDeck(const Font& font, const Texture& texture, const Texture& backtexture, const Font& smallfont)
     : m_font(font), m_texture(texture), m_back_texture(backtexture)
 {
     m_cards.reserve(ste_SpecialDeckSize);
@@ -11,22 +11,22 @@ SpecialDeck::SpecialDeck(const Font& font, const Texture& texture, const Texture
     // 特殊カードの種類ごとに枚数を設定
     // ワイルドカード 3枚
     for (int i = 0; i < 3; ++i) {
-        m_cards.emplace_back(ste_Wildcard, U"ワイルド", U"任意の色・値として使える", font, texture, backtexture);
+        m_cards.emplace_back(ste_Wildcard, U"ワイルド", U"任意の色・値として使える", font, texture, backtexture, smallfont);
     }
     // スティールカード 2枚
     for (int i = 0; i < 2; ++i) {
-        m_cards.emplace_back(ste_StealCard, U"スティール", U"相手のカードを1枚奪う", font, texture, backtexture);
+        m_cards.emplace_back(ste_StealCard, U"スティール", U"相手のカードを1枚奪う", font, texture, backtexture, smallfont);
     }
     // デストロイカード 2枚
     for (int i = 0; i < 2; ++i) {
-        m_cards.emplace_back(ste_DestroyCard, U"デストロイ", U"相手のカードを1枚破壊", font, texture, backtexture);
+        m_cards.emplace_back(ste_DestroyCard, U"デストロイ", U"相手のカードを1枚破壊", font, texture, backtexture, smallfont);
     }
     // スワップカード 2枚
     for (int i = 0; i < 2; ++i) {
-        m_cards.emplace_back(ste_SwapCard, U"スワップ", U"カードを入れ替える", font, texture, backtexture);
+        m_cards.emplace_back(ste_SwapCard, U"スワップ", U"カードを入れ替える", font, texture, backtexture, smallfont);
     }
     // ダブルバリュー 1枚
-    m_cards.emplace_back(ste_DoubleValue, U"ダブル", U"値を2倍にする", font, texture, backtexture);
+    m_cards.emplace_back(ste_DoubleValue, U"ダブル", U"値を2倍にする", font, texture, backtexture, smallfont);
 }
 
 void SpecialDeck::shuffle() {
