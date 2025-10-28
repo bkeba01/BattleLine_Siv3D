@@ -326,6 +326,8 @@
     <ClInclude Include="include\core\Deck.h" />
     <ClInclude Include="include\core\SpecialCard.h" />
     <ClInclude Include="include\core\SpecialDeck.h" />
+    <ClInclude Include="include\core\WeatherSlot.h" />
+    <ClInclude Include="include\core\ConspiracySlot.h" />
     <ClInclude Include="include\core\DragManager.h" />
     <ClInclude Include="include\core\Flag.h" />
     <ClInclude Include="include\core\GameState.h" />
@@ -426,6 +428,8 @@
     <ClCompile Include="src\core\Deck.cpp" />
     <ClCompile Include="src\core\SpecialCard.cpp" />
     <ClCompile Include="src\core\SpecialDeck.cpp" />
+    <ClCompile Include="src\core\WeatherSlot.cpp" />
+    <ClCompile Include="src\core\ConspiracySlot.cpp" />
     <ClCompile Include="src\core\Flag.cpp" />
     <ClCompile Include="src\core\GameState.cpp" />
     <ClCompile Include="src\core\Player.cpp" />

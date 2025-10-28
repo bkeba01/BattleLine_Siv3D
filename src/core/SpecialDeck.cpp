@@ -9,24 +9,18 @@ SpecialDeck::SpecialDeck(const Font& font, const Texture& texture, const Texture
     m_cards.reserve(ste_SpecialDeckSize);
 
     // 特殊カードの種類ごとに枚数を設定
-    // ワイルドカード 3枚
-    for (int i = 0; i < 3; ++i) {
-        m_cards.emplace_back(ste_Wildcard, U"ワイルド", U"任意の色・値として使える", font, texture, backtexture, smallfont);
-    }
-    // スティールカード 2枚
+    // ワイルドカード 3枚（部隊カード）
     for (int i = 0; i < 2; ++i) {
-        m_cards.emplace_back(ste_StealCard, U"スティール", U"相手のカードを1枚奪う", font, texture, backtexture, smallfont);
+        m_cards.emplace_back(ste_WildCard, ste_TroopCard, U"ワイルド", U"任意の色・値として使える", font, texture, backtexture, smallfont);
     }
-    // デストロイカード 2枚
-    for (int i = 0; i < 2; ++i) {
-        m_cards.emplace_back(ste_DestroyCard, U"デストロイ", U"相手のカードを1枚破壊", font, texture, backtexture, smallfont);
-    }
-    // スワップカード 2枚
-    for (int i = 0; i < 2; ++i) {
-        m_cards.emplace_back(ste_SwapCard, U"スワップ", U"カードを入れ替える", font, texture, backtexture, smallfont);
-    }
-    // ダブルバリュー 1枚
-    m_cards.emplace_back(ste_DoubleValue, U"ダブル", U"値を2倍にする", font, texture, backtexture, smallfont);
+	m_cards.emplace_back(ste_WildCard_Eight, ste_TroopCard, U"ワイルド8", U"任意の色で8として使える", font, texture, backtexture, smallfont);
+	m_cards.emplace_back(ste_WildCard_Shield, ste_TroopCard, U"ワイルド盾", U"任意の色で1,2,3として使える", font, texture, backtexture, smallfont);
+	m_cards.emplace_back(ste_FogCard, ste_WeatherTacticCard, U"霧", U"役ではなく合計値を取得", font, texture, backtexture, smallfont);
+	m_cards.emplace_back(ste_MudCard, ste_WeatherTacticCard, U"泥", U"4枚での役判断する", font, texture, backtexture, smallfont);
+	m_cards.emplace_back(ste_ReconCard, ste_ConspiracyTacticCard, U"偵察", U"山札から任意のカードを3枚取得、手札から2枚を山札に返す。", font, texture, backtexture, smallfont);
+	m_cards.emplace_back(ste_DeploymentCard, ste_ConspiracyTacticCard, U"配置展開", U"自分のSlotからカードを選択、そのカードを別のSlot、もしくは削除する。", font, texture, backtexture, smallfont);
+	m_cards.emplace_back(ste_EscapeCard, ste_ConspiracyTacticCard, U"脱走", U"相手のSlotからカードを選択、削除する。", font, texture, backtexture, smallfont);
+	m_cards.emplace_back(ste_BetrayalCard, ste_ConspiracyTacticCard, U"裏切り", U"相手のSlotからカードを選択、自分のSlotに配置", font, texture, backtexture, smallfont);
 }
 
 void SpecialDeck::shuffle() {
@@ -45,6 +39,39 @@ std::optional<SpecialCard> SpecialDeck::drawCard()
     SpecialCard drawnCard = m_cards.back();
     m_cards.pop_back();
     return drawnCard;
+}
+
+std::shared_ptr<SpecialCard> SpecialDeck::draw()
+{
+    if (m_cards.empty())
+    {
+        return nullptr;
+    }
+
+    SpecialCard drawnCard = m_cards.back();
+    m_cards.pop_back();
+    return std::make_shared<SpecialCard>(drawnCard);
+}
+
+void SpecialDeck::returnCard(std::shared_ptr<CardBase> card)
+{
+    // CardBaseからSpecialCardにダウンキャスト
+    auto cardPtr = std::dynamic_pointer_cast<SpecialCard>(card);
+    if (cardPtr)
+    {
+        m_cards.push_back(*cardPtr);
+    }
+}
+
+std::shared_ptr<SpecialCard> SpecialDeck::removeCard(size_t index)
+{
+    if (index >= m_cards.size())
+    {
+        return nullptr;
+    }
+    SpecialCard removedCard = m_cards[index];
+    m_cards.erase(m_cards.begin() + index);
+    return std::make_shared<SpecialCard>(removedCard);
 }
 
 bool SpecialDeck::isEmpty() const {

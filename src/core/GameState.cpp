@@ -2,6 +2,9 @@
 #include "core/Common.h"
 #include "core/Flag.h"
 #include "core/Slot.h"
+#include "core/WeatherSlot.h"
+#include "core/ConspiracySlot.h"
+#include "core/SpecialCard.h"
 int checkSerialValue(int playerindex,int flagindex,std::vector<Flag>& m_flags,int serial_count=0);
 
 GameState::GameState(Player player1, Player player2, Deck deck, SpecialDeck specialDeck)
@@ -9,13 +12,16 @@ GameState::GameState(Player player1, Player player2, Deck deck, SpecialDeck spec
 {
     m_flags.reserve(ste_FlagMakeNum);
 	m_slots.reserve(ste_FlagMakeNum);
+	m_weatherSlots.reserve(ste_FlagMakeNum);
 
     for(int i=ste_FlagMinNum;i<=ste_FlagMaxNum;++i)
     {
         m_flags.emplace_back(i);
 		m_slots.emplace_back();
+		m_weatherSlots.emplace_back();
 		m_flags[i].setSlotIndex(i);
 		m_slots[i].setFlagIndex(i);
+		m_weatherSlots[i].setFlagIndex(i);
     }
 
 }
@@ -32,6 +38,14 @@ std::vector<Flag>& GameState::getFlags() { return m_flags; }
 
 Slot& GameState::getSlot(int flagIndex) {
     return m_slots[flagIndex];
+}
+
+WeatherSlot& GameState::getWeatherSlot(int flagIndex) {
+    return m_weatherSlots[flagIndex];
+}
+
+ConspiracySlot& GameState::getConspiracySlot() {
+    return m_conspiracySlot;
 }
 
 Flag& GameState::getFlag(int slotIndex) {
@@ -151,3 +165,22 @@ void GameState::drawFromSpecialDeck()
 	m_currentPlayer->drawSpecialCard(&m_special_deck);
 	m_waiting_for_deck_choice = false;
 }
+
+void GameState::startReconCard()
+{
+	m_recon_mode = true;
+	m_recon_phase = 0; // 山札選択フェーズ
+	m_recon_drawn_cards.clear();
+	m_recon_card_from_special.clear();
+	m_recon_selected_hand_indices.clear();
+	m_recon_viewing_deck = false;
+	m_recon_viewing_special = false;
+}
+
+void GameState::startDeploymentCard()
+{
+	m_deployment_mode = true;
+	m_deployment_source_flag = -1;
+	m_deployment_source_slot = -1;
+}
+

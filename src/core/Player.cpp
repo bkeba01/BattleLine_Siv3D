@@ -5,6 +5,9 @@
 #include "core/Common.h"
 #include "core/Flag.h"
 #include "core/Slot.h"
+#include "core/SpecialCard.h"
+#include "core/WeatherSlot.h"
+#include "core/ConspiracySlot.h"
 
 Player::Player(int playerId, Deck &deck, Vec2 card_hand_size, Vec2 card_hand_space)
 	: m_id(playerId)
@@ -74,9 +77,9 @@ int Player::getChoiceCardIndex() const
     return m_card_index;
 }
 
-int Player::removeCardFromHand(int index) 
+int Player::removeCardFromHand(int index)
 {
-    if (index < static_cast<int>(ste_HandCardMinNum) || index >= static_cast<int>(m_hand.size())) 
+    if (index < static_cast<int>(ste_HandCardMinNum) || index >= static_cast<int>(m_hand.size()))
     {
         throw std::out_of_range("Invalid card index");
     }
@@ -87,6 +90,32 @@ int Player::removeCardFromHand(int index)
         return -1;
     }
     return 0;
+}
+
+std::shared_ptr<CardBase> Player::removeCardFromHandByIndex(int index)
+{
+    if (index < static_cast<int>(ste_HandCardMinNum) || index >= static_cast<int>(m_hand.size()))
+    {
+        throw std::out_of_range("Invalid card index");
+    }
+    auto card = m_hand[index];
+    m_hand.erase(m_hand.begin() + index);
+    if (m_hand.empty())
+    {
+        setHandIsEmpty(true);
+    }
+    return card;
+}
+
+void Player::addCardToHand(std::shared_ptr<CardBase> card)
+{
+    // 手札の上限チェック（7枚まで）
+    if (m_hand.size() >= static_cast<size_t>(ste_HandCardMakeNum))
+    {
+        return; // 手札が満杯なので追加しない
+    }
+    m_hand.push_back(card);
+    setHandIsEmpty(false);
 }
 
 bool Player::getHandIsEmpty() const 
@@ -122,6 +151,42 @@ void Player::update()
 		const double centerX = m_hand[i]->getCardHandSpace().x + m_hand[i]->getCardHandSize().x / 2 * i + (m_hand[i]->getCardHandSize().x / 2.0);
 		m_cardRects << RectF{ Arg::center(centerX, m_hand[i]->getCardHandSpace().y), m_hand[i]->getCardHandSize().x, m_hand[i]->getCardHandSize().y };
 	}
+
+	// ドラッグ中のカードタイプを判定
+	if (const auto heldIndex = m_dragManager.heldIndex())
+	{
+		int index = *heldIndex;
+		if (index >= 0 && index < m_hand.size())
+		{
+			// 通常のCardか判定
+			if (auto cardPtr = std::dynamic_pointer_cast<Card>(m_hand[index]))
+			{
+				m_draggedCardType = DraggedCardType::NormalCard;
+			}
+			// SpecialCardか判定
+			else if (auto specialCardPtr = std::dynamic_pointer_cast<SpecialCard>(m_hand[index]))
+			{
+				SpecialCardCategory category = specialCardPtr->getCategory();
+				if (category == ste_TroopCard)
+				{
+					m_draggedCardType = DraggedCardType::TroopCard;
+				}
+				else if (category == ste_WeatherTacticCard)
+				{
+					m_draggedCardType = DraggedCardType::WeatherCard;
+				}
+				else if (category == ste_ConspiracyTacticCard)
+				{
+					m_draggedCardType = DraggedCardType::ConspiracyCard;
+				}
+			}
+		}
+	}
+	else
+	{
+		// ドラッグしていない場合はNone
+		m_draggedCardType = DraggedCardType::None;
+	}
 }
 
 void Player::handleInput(GameState& gameState)
@@ -136,17 +201,18 @@ void Player::handleInput(GameState& gameState)
 			const Vec2 droppedCardCenter = m_hand[droppedHandIndex]->getRect().center();
 
 			bool droppedInSlot = false;
-			for (auto& flag : gameState.getFlags())
+
+			// 通常のカードの場合
+			if (auto cardPtr = std::dynamic_pointer_cast<Card>(m_hand[droppedHandIndex]))
 			{
-				Slot& currentSlot = gameState.getSlot(flag.getSlotIndex());
-				int emptySlotIndex = currentSlot.checkCardSpace(gameState.getCurrentPlayer());
-				if (emptySlotIndex != static_cast<int>(ste_SlotCard_NonSpace))
+				for (auto& flag : gameState.getFlags())
 				{
-					const RectF slotRect = currentSlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
-					if (slotRect.contains(droppedCardCenter))
+					Slot& currentSlot = gameState.getSlot(flag.getSlotIndex());
+					int emptySlotIndex = currentSlot.checkCardSpace(gameState.getCurrentPlayer(), gameState);
+					if (emptySlotIndex != static_cast<int>(ste_SlotCard_NonSpace))
 					{
-						// CardBaseポインタからCardにダウンキャストして渡す
-						if (auto cardPtr = std::dynamic_pointer_cast<Card>(m_hand[droppedHandIndex]))
+						const RectF slotRect = currentSlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
+						if (slotRect.contains(droppedCardCenter))
 						{
 							currentSlot.placeCard(gameState, *cardPtr, gameState.getCurrentPlayer());
 							removeCardFromHand(droppedHandIndex);
@@ -154,6 +220,74 @@ void Player::handleInput(GameState& gameState)
 							m_dragManager.clearHover();
 							droppedInSlot = true;
 							break;
+						}
+					}
+				}
+			}
+			// 特殊カードの場合
+			else if (auto specialCardPtr = std::dynamic_pointer_cast<SpecialCard>(m_hand[droppedHandIndex]))
+			{
+				SpecialCardCategory category = specialCardPtr->getCategory();
+
+				// 部隊カード - スロットに配置（通常カードと同じ）
+				if (category == ste_TroopCard)
+				{
+					for (auto& flag : gameState.getFlags())
+					{
+						Slot& currentSlot = gameState.getSlot(flag.getSlotIndex());
+						int emptySlotIndex = currentSlot.checkCardSpace(gameState.getCurrentPlayer(), gameState);
+						if (emptySlotIndex != static_cast<int>(ste_SlotCard_NonSpace))
+						{
+							const RectF slotRect = currentSlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
+							if (slotRect.contains(droppedCardCenter))
+							{
+								currentSlot.placeSpecialCard(gameState, *specialCardPtr, gameState.getCurrentPlayer());
+								removeCardFromHand(droppedHandIndex);
+								gameState.setWaitingForDeckChoice(true);
+								m_dragManager.clearHover();
+								droppedInSlot = true;
+								break;
+							}
+						}
+					}
+				}
+				// 気象戦術カード - フラグの下に配置
+				else if (category == ste_WeatherTacticCard)
+				{
+					for (auto& flag : gameState.getFlags())
+					{
+						WeatherSlot& currentWeatherSlot = gameState.getWeatherSlot(flag.getSlotIndex());
+						int emptySlotIndex = currentWeatherSlot.checkCardSpace(gameState.getCurrentPlayer());
+						if (emptySlotIndex != static_cast<int>(ste_SlotCard_NonSpace))
+						{
+							const RectF slotRect = currentWeatherSlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
+							if (slotRect.contains(droppedCardCenter))
+							{
+								currentWeatherSlot.placeWeatherCard(gameState, *specialCardPtr, gameState.getCurrentPlayer());
+								removeCardFromHand(droppedHandIndex);
+								gameState.setWaitingForDeckChoice(true);
+								m_dragManager.clearHover();
+								droppedInSlot = true;
+								break;
+							}
+						}
+					}
+				}
+				// 謀略戦術カード - 特殊デッキの近くに配置
+				else if (category == ste_ConspiracyTacticCard)
+				{
+					ConspiracySlot& conspiracySlot = gameState.getConspiracySlot();
+					int emptySlotIndex = conspiracySlot.checkCardSpace(gameState.getCurrentPlayer());
+					if (emptySlotIndex != static_cast<int>(ste_SlotCard_NonSpace))
+					{
+						const RectF slotRect = conspiracySlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
+						if (slotRect.contains(droppedCardCenter))
+						{
+							conspiracySlot.placeConspiracyCard(gameState, *specialCardPtr, gameState.getCurrentPlayer());
+							removeCardFromHand(droppedHandIndex);
+							gameState.setWaitingForDeckChoice(true);
+							m_dragManager.clearHover();
+							droppedInSlot = true;
 						}
 					}
 				}
@@ -238,18 +372,78 @@ void Player::drawHoveredAndHeldCards(GameState& gameState)
 		const RectF originalDraggingRect = m_dragManager.getDraggingRect(cardSize.x, cardSize.y);
 		const Vec2 draggedCardCenter = originalDraggingRect.center();
 
-		for (auto& flag : gameState.getFlags())
+		// 通常のカードの場合
+		if (auto cardPtr = std::dynamic_pointer_cast<Card>(m_hand[*currentHeldRectsIndex]))
 		{
-			Slot& currentSlot = gameState.getSlot(flag.getSlotIndex());
-			int emptySlotIndex = currentSlot.checkCardSpace(gameState.getCurrentPlayer());
-			if (emptySlotIndex != static_cast<int>(ste_SlotCard_NonSpace))
+			for (auto& flag : gameState.getFlags())
 			{
-				const RectF slotRect = currentSlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
+				Slot& currentSlot = gameState.getSlot(flag.getSlotIndex());
+				int emptySlotIndex = currentSlot.checkCardSpace(gameState.getCurrentPlayer(),gameState);
+				if (emptySlotIndex != static_cast<int>(ste_SlotCard_NonSpace))
+				{
+					const RectF slotRect = currentSlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
 					if (slotRect.contains(draggedCardCenter))
 					{
 						cardSize = currentSlot.getCardSlotSize();
 						break;
 					}
+				}
+			}
+		}
+		// 特殊カードの場合
+		else if (auto specialCardPtr = std::dynamic_pointer_cast<SpecialCard>(m_hand[*currentHeldRectsIndex]))
+		{
+			SpecialCardCategory category = specialCardPtr->getCategory();
+
+			// 部隊カード - スロットサイズに合わせる
+			if (category == ste_TroopCard)
+			{
+				for (auto& flag : gameState.getFlags())
+				{
+					Slot& currentSlot = gameState.getSlot(flag.getSlotIndex());
+					int emptySlotIndex = currentSlot.checkCardSpace(gameState.getCurrentPlayer(), gameState);
+					if (emptySlotIndex != static_cast<int>(ste_SlotCard_NonSpace))
+					{
+						const RectF slotRect = currentSlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
+						if (slotRect.contains(draggedCardCenter))
+						{
+							cardSize = currentSlot.getCardSlotSize();
+							break;
+						}
+					}
+				}
+			}
+			// 気象戦術カード - 気象エリアのサイズに合わせる
+			else if (category == ste_WeatherTacticCard)
+			{
+				for (auto& flag : gameState.getFlags())
+				{
+					WeatherSlot& currentWeatherSlot = gameState.getWeatherSlot(flag.getSlotIndex());
+					int emptySlotIndex = currentWeatherSlot.checkCardSpace(gameState.getCurrentPlayer());
+					if (emptySlotIndex != static_cast<int>(ste_SlotCard_NonSpace))
+					{
+						const RectF slotRect = currentWeatherSlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
+						if (slotRect.contains(draggedCardCenter))
+						{
+							cardSize = currentWeatherSlot.getCardSlotSize();
+							break;
+						}
+					}
+				}
+			}
+			// 謀略戦術カード - 謀略エリアのサイズに合わせる
+			else if (category == ste_ConspiracyTacticCard)
+			{
+				ConspiracySlot& conspiracySlot = gameState.getConspiracySlot();
+				int emptySlotIndex = conspiracySlot.checkCardSpace(gameState.getCurrentPlayer());
+				if (emptySlotIndex != static_cast<int>(ste_SlotCard_NonSpace))
+				{
+					const RectF conspiracyRect = conspiracySlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
+					if (conspiracyRect.contains(draggedCardCenter))
+					{
+						cardSize = Vec2{ conspiracyRect.w, conspiracyRect.h };
+					}
+				}
 			}
 		}
 

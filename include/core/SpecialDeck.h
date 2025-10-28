@@ -18,6 +18,10 @@ class SpecialDeck {
         SpecialDeck(const Font& font, const Texture& texture, const Texture& backtexture,const Font& smallfont);
         void shuffle();
         std::optional<SpecialCard> drawCard();
+        std::shared_ptr<SpecialCard> draw(); // ReconCard用
+        void returnCard(std::shared_ptr<CardBase> card); // ReconCard用
+        const std::vector<SpecialCard>& getCards() const { return m_cards; } // ReconCard一覧表示用
+        std::shared_ptr<SpecialCard> removeCard(size_t index); // ReconCard: 指定インデックスのカードを削除
         bool isEmpty() const;
         void setRect(RectF rect) { m_rect = rect; }
         RectF getRect() const { return m_rect; }

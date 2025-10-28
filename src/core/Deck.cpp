@@ -22,9 +22,9 @@ void Deck::shuffle() {
     std::shuffle(m_cards.begin(), m_cards.end(), g);
 }
 
-std::optional<Card> Deck::drawCard() 
+std::optional<Card> Deck::drawCard()
 {
-    if (m_cards.empty()) 
+    if (m_cards.empty())
     {
         return std::nullopt;
     }
@@ -32,6 +32,39 @@ std::optional<Card> Deck::drawCard()
     Card drawnCard = m_cards.back();
     m_cards.pop_back();
     return drawnCard;
+}
+
+std::shared_ptr<Card> Deck::draw()
+{
+    if (m_cards.empty())
+    {
+        return nullptr;
+    }
+
+    Card drawnCard = m_cards.back();
+    m_cards.pop_back();
+    return std::make_shared<Card>(drawnCard);
+}
+
+void Deck::returnCard(std::shared_ptr<CardBase> card)
+{
+    // CardBaseからCardにダウンキャスト
+    auto cardPtr = std::dynamic_pointer_cast<Card>(card);
+    if (cardPtr)
+    {
+        m_cards.push_back(*cardPtr);
+    }
+}
+
+std::shared_ptr<Card> Deck::removeCard(size_t index)
+{
+    if (index >= m_cards.size())
+    {
+        return nullptr;
+    }
+    Card removedCard = m_cards[index];
+    m_cards.erase(m_cards.begin() + index);
+    return std::make_shared<Card>(removedCard);
 }
 
 bool Deck::isEmpty() const {

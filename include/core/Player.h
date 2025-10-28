@@ -10,6 +10,7 @@
 #include "SpecialDeck.h"
 #include "SpecialCard.h"
 #include "DragManager.h"
+#include "Common.h"
 #include <optional>
 class GameState;
 class CardBase;
@@ -27,6 +28,7 @@ class Player
 		Array<RectF> m_opponentCardRects;
 		Vec2 m_card_hand_size;
 		Vec2 m_card_hand_space;
+		DraggedCardType m_draggedCardType = DraggedCardType::None;
 
     public:
         Player(int playerId,Deck &deck,Vec2,Vec2);
@@ -40,6 +42,8 @@ class Player
         int getChoiceCardIndex() const;
 
         int removeCardFromHand(int index);
+        std::shared_ptr<CardBase> removeCardFromHandByIndex(int index);
+        void addCardToHand(std::shared_ptr<CardBase> card);
         void setHandIsEmpty(bool empty);
         bool getHandIsEmpty() const;
 
@@ -47,6 +51,9 @@ class Player
 
         void updateDrag(Array<RectF>& cardRects);
         const DragManager& getDragManager() const { return m_dragManager; }
+
+		DraggedCardType getDraggedCardType() const { return m_draggedCardType; }
+		void setDraggedCardType(DraggedCardType type) { m_draggedCardType = type; }
 
 		void update();
 		void handleInput(GameState& gameState);

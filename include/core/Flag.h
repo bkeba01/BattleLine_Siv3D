@@ -22,6 +22,8 @@ class Flag {
 		Texture m_texture;
 		Vec2 m_draw_position;
 		int m_slotIndex = -1;
+		void checkRoleStatus_Special(GameState& gameState,Player* currentPlayer,Slot* currentSlot);
+		void checkRoleStatus_normal(GameState& gameState, Player* currentPlayer,Slot* currnetSlot);
     public:
         Flag(int position);
         int getPosition() const;

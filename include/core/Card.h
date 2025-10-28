@@ -22,6 +22,7 @@ class Card : public CardBase {
         }
 
 		void draw() const override;
+		void draw(const RectF& rect) const override;
 		void drawBack() const override;
 };
 

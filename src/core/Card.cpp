@@ -19,29 +19,34 @@ int Card::getValue() const { return m_value; }
 
 void Card::draw() const
 {
+	draw(m_rect);
+}
+
+void Card::draw(const RectF& rect) const
+{
 	if (getValue() == 0)
 	{
-		m_rect.draw(ColorF{ 0.0, 0.0, 0.0, 0.2 });
+		rect.draw(ColorF{ 0.0, 0.0, 0.0, 0.2 });
 		return;
 	}
 
 	const HSV cardColor = HSV{ static_cast<double>(getColor() * 60 - 60), 0.6, 0.95 };
-	m_rect.draw(cardColor);
-	m_rect.drawFrame(2, 0, Palette::Black);
+	rect.draw(cardColor);
+	rect.drawFrame(2, 0, Palette::Black);
 	//font(getValue()).drawAt(rect.center().movedBy(0, -10), Palette::Black);
 	m_font(getValue()).draw(
-		m_rect.x + 5,            // 左端から5px右
-		m_rect.y + 5,            // 上端から5px下
+		rect.x + 5,            // 左端から5px右
+		rect.y + 5,            // 上端から5px下
 		Palette::Black
 	);
 	double textWidth = m_font(getValue()).region().w;   // 文字の幅
 	double textHeight = m_font(getValue()).region().h;   // 文字の高さ
 	m_font(getValue()).draw(
-		m_rect.x + m_rect.w - textWidth - 5,  // 右端から5px左
-		m_rect.y + m_rect.h - textHeight - 5, // 下端から5px上
+		rect.x + rect.w - textWidth - 5,  // 右端から5px左
+		rect.y + rect.h - textHeight - 5, // 下端から5px上
 		Palette::Black
 	);
-	m_texture.resized(30).drawAt(m_rect.center().movedBy(0, 15));
+	m_texture.resized(30).drawAt(rect.center().movedBy(0, 15));
 }
 
 void Card::drawBack() const

@@ -36,6 +36,7 @@ public:
 
     // 純粋仮想関数（派生クラスで実装必須）
     virtual void draw() const = 0;
+    virtual void draw(const RectF& rect) const = 0;  // 位置指定版
     virtual void drawBack() const = 0;
 };
 

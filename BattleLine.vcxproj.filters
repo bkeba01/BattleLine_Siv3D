@@ -846,6 +846,12 @@
     <ClInclude Include="include\core\SpecialDeck.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\core\WeatherSlot.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\core\ConspiracySlot.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="include\core\CardBase.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -879,6 +885,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\core\SpecialDeck.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\WeatherSlot.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\ConspiracySlot.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\core\CardBase.cpp">
