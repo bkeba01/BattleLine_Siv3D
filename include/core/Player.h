@@ -43,7 +43,7 @@ class Player
 
         int removeCardFromHand(int index);
         std::shared_ptr<CardBase> removeCardFromHandByIndex(int index);
-        void addCardToHand(std::shared_ptr<CardBase> card);
+        void addCardToHand(std::shared_ptr<CardBase> card, bool force = false);
         void setHandIsEmpty(bool empty);
         bool getHandIsEmpty() const;
 

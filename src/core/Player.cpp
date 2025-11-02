@@ -107,10 +107,11 @@ std::shared_ptr<CardBase> Player::removeCardFromHandByIndex(int index)
     return card;
 }
 
-void Player::addCardToHand(std::shared_ptr<CardBase> card)
+void Player::addCardToHand(std::shared_ptr<CardBase> card, bool force)
 {
     // 手札の上限チェック（7枚まで）
-    if (m_hand.size() >= static_cast<size_t>(ste_HandCardMakeNum))
+    // force=trueの場合は上限を無視（ReconCard用）
+    if (!force && m_hand.size() >= static_cast<size_t>(ste_HandCardMakeNum))
     {
         return; // 手札が満杯なので追加しない
     }

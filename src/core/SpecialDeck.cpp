@@ -59,6 +59,7 @@ void SpecialDeck::returnCard(std::shared_ptr<CardBase> card)
     auto cardPtr = std::dynamic_pointer_cast<SpecialCard>(card);
     if (cardPtr)
     {
+        // 山札の一番上（最後）に追加（drawCard()がbackから引くため）
         m_cards.push_back(*cardPtr);
     }
 }

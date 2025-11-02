@@ -173,8 +173,12 @@ void GameState::startReconCard()
 	m_recon_drawn_cards.clear();
 	m_recon_card_from_special.clear();
 	m_recon_selected_hand_indices.clear();
+	m_recon_selected_deck_indices.clear();
 	m_recon_viewing_deck = false;
 	m_recon_viewing_special = false;
+	m_recon_scroll_offset = 0.0; // スクロールオフセットをリセット
+	m_recon_cards_to_return.clear();
+	m_recon_return_to_special.clear();
 }
 
 void GameState::startDeploymentCard()

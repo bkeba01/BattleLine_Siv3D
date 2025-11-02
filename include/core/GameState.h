@@ -41,10 +41,14 @@ class GameState {
         bool m_recon_mode = false;
         std::vector<std::shared_ptr<CardBase>> m_recon_drawn_cards; // 選択したカード（最大3枚）
         std::vector<bool> m_recon_card_from_special; // 各カードが特殊デッキから来たかどうか
-        int m_recon_phase = 0; // 0: 山札選択, 1: カード一覧から選択, 2: 2枚戻す
+        int m_recon_phase = 0; // 0: 山札選択, 1: カード一覧から選択, 2: 2枚戻す, 3: カードを山札に戻す表示
         std::vector<int> m_recon_selected_hand_indices; // Phase 2で選択した手札のインデックス
         bool m_recon_viewing_deck = false; // 現在山札一覧を表示中か
         bool m_recon_viewing_special = false; // 特殊デッキを表示中か
+        std::vector<size_t> m_recon_selected_deck_indices; // Phase 1で選択した山札のインデックス
+        double m_recon_scroll_offset = 0.0; // デッキ一覧のスクロールオフセット
+        std::vector<std::shared_ptr<CardBase>> m_recon_cards_to_return; // Phase 3で戻すカード
+        std::vector<bool> m_recon_return_to_special; // Phase 3で各カードが特殊デッキに戻るか
 
         // DeploymentCard (配置展開カード) 用の状態
         bool m_deployment_mode = false;
@@ -92,7 +96,12 @@ class GameState {
         void setReconViewingDeck(bool viewing) { m_recon_viewing_deck = viewing; }
         bool isReconViewingSpecial() const { return m_recon_viewing_special; }
         void setReconViewingSpecial(bool viewing) { m_recon_viewing_special = viewing; }
+        std::vector<size_t>& getReconSelectedDeckIndices() { return m_recon_selected_deck_indices; }
         void startReconCard();
+		void setReconScrollOffset(double offset) { m_recon_scroll_offset = offset; };
+		double getReconScrollOffset()  const { return m_recon_scroll_offset; }
+		std::vector<std::shared_ptr<CardBase>>& getReconCardsToReturn() { return m_recon_cards_to_return; }
+		std::vector<bool>& getReconReturnToSpecial() { return m_recon_return_to_special; }
 
         // DeploymentCard用のメソッド
         bool isDeploymentMode() const { return m_deployment_mode; }

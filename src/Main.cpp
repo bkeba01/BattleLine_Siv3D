@@ -94,6 +94,8 @@ void Main()
 	gameState->getPlayer1()->update();
 	gameState->getPlayer2()->update();
 	Font instructionFont{ 24, Typeface::Bold };
+	Font smallFont{ 16, Typeface::Bold };
+	Font debugFont{ 14, Typeface::Bold };
 	while (System::Update())
 	{
 		gameState->autoSetFinished();
@@ -151,11 +153,80 @@ void Main()
 			int phase = gameState->getReconPhase();
 			auto& selectedCards = gameState->getReconDrawnCards();
 			auto& cardFromSpecial = gameState->getReconCardFromSpecial();
-
+		
 			if (phase == 0)
 			{
 				// Phase 0: 山札選択（通常 or 特殊、複数回可能）
 				instructionFont(U"山札を選択してカード一覧を表示（選択済: " + ToString(selectedCards.size()) + U"/3）").drawAt(Scene::Center().movedBy(0, -250), Palette::Orange);
+
+				// 選択済みカードの表示（画面中央）
+				if (!selectedCards.empty())
+				{
+					float cardWidth = object_pos[U"card_hand_size"].x;
+					float cardHeight = object_pos[U"card_hand_size"].y;
+					float cardSpacing = 20.0f;
+					float totalWidth = selectedCards.size() * cardWidth + (selectedCards.size() - 1) * cardSpacing;
+					float startX = (Scene::Width() - totalWidth) / 2.0f;
+					float centerY = Scene::Center().y;
+
+					smallFont(U"選択済みカード: (クリックで削除)").drawAt(Scene::Center().x, centerY - cardHeight / 2.0f - 30, Palette::Yellow);
+
+					for (size_t i = 0; i < selectedCards.size(); ++i)
+					{
+						float cardX = startX + i * (cardWidth + cardSpacing);
+						RectF cardRect(cardX, centerY - cardHeight / 2.0f, cardWidth, cardHeight);
+
+						// カードを描画
+						selectedCards[i]->draw(cardRect);
+
+						// 黄色のフレームで選択済みを示す
+						cardRect.drawFrame(5, Palette::Yellow);
+
+						// クリックで削除
+						if (cardRect.leftClicked())
+						{
+							// カードをデッキに戻す
+							if (cardFromSpecial[i])
+							{
+								gameState->getSpecialDeck()->returnCard(selectedCards[i]);
+							}
+							else
+							{
+								gameState->getDeck()->returnCard(selectedCards[i]);
+							}
+							// リストから削除
+							selectedCards.erase(selectedCards.begin() + i);
+							cardFromSpecial.erase(cardFromSpecial.begin() + i);
+							break;
+						}
+					}
+				}
+
+				// デッキをホバー時にハイライト（常に表示）
+				if (gameState->getDeck()->getRect().mouseOver())
+				{
+					gameState->getDeck()->getRect().drawFrame(5, Palette::Orange);
+				}
+				if (gameState->getSpecialDeck()->getRect().mouseOver())
+				{
+					gameState->getSpecialDeck()->getRect().drawFrame(5, Palette::Gold);
+				}
+
+				// 山札選択の入力処理（常に可能）
+				if (gameState->getDeck()->getRect().leftClicked())
+				{
+					gameState->setReconViewingDeck(true);
+					gameState->setReconViewingSpecial(false);
+					gameState->setReconScrollOffset(0.0); // スクロールをリセット
+					gameState->setReconPhase(1);
+				}
+				else if (gameState->getSpecialDeck()->getRect().leftClicked())
+				{
+					gameState->setReconViewingDeck(false);
+					gameState->setReconViewingSpecial(true);
+					gameState->setReconScrollOffset(0.0); // スクロールをリセット
+					gameState->setReconPhase(1);
+				}
 
 				// 3枚選択済みなら次のフェーズへ進むボタンを表示
 				if (selectedCards.size() == 3)
@@ -168,38 +239,21 @@ void Main()
 						// 各山札をシャッフル
 						gameState->getDeck()->shuffle();
 						gameState->getSpecialDeck()->shuffle();
-						// 手札に追加
+						// 手札に追加（force=trueで上限を無視）
+						Vec2 handSpace = object_pos[U"card_hand_space"];
+						if (gameState->getCurrentPlayer()->getId() == 1) {
+							handSpace = object_pos[U"card_opponent_hand_space"];
+						}
 						for (auto& card : selectedCards)
 						{
-							gameState->getCurrentPlayer()->addCardToHand(card);
+							// カードのサイズとスペースを設定
+							card->setCardHandSize(object_pos[U"card_hand_size"]);
+							card->setCardHandSpace(handSpace);
+							gameState->getCurrentPlayer()->addCardToHand(card, true);
 						}
+						// 手札が更新されたので、updateを呼んで m_cardRects を更新
+						gameState->getCurrentPlayer()->update();
 						gameState->setReconPhase(2); // Phase 2へ
-					}
-				}
-				else
-				{
-					// デッキをホバー時にハイライト
-					if (gameState->getDeck()->getRect().mouseOver())
-					{
-						gameState->getDeck()->getRect().drawFrame(5, Palette::Orange);
-					}
-					if (gameState->getSpecialDeck()->getRect().mouseOver())
-					{
-						gameState->getSpecialDeck()->getRect().drawFrame(5, Palette::Gold);
-					}
-
-					// 山札選択の入力処理
-					if (gameState->getDeck()->getRect().leftClicked())
-					{
-						gameState->setReconViewingDeck(true);
-						gameState->setReconViewingSpecial(false);
-						gameState->setReconPhase(1);
-					}
-					else if (gameState->getSpecialDeck()->getRect().leftClicked())
-					{
-						gameState->setReconViewingDeck(false);
-						gameState->setReconViewingSpecial(true);
-						gameState->setReconPhase(1);
 					}
 				}
 			}
@@ -208,75 +262,272 @@ void Main()
 				// Phase 1: 山札一覧から選択
 				bool viewingSpecial = gameState->isReconViewingSpecial();
 				String deckName = viewingSpecial ? U"特殊デッキ" : U"通常デッキ";
-				instructionFont(deckName + U"一覧（選択済: " + ToString(selectedCards.size()) + U"/3）").drawAt(Scene::Center().movedBy(0, -350), Palette::Orange);
 
-				// 山札の一覧を表示
+				// 選択中のカードをハイライトするためのインデックスリスト
+				auto& selectedDeckIndices = gameState->getReconSelectedDeckIndices();
+
+				int remaining_count = 3 - selectedCards.size();
+				instructionFont(deckName + U"から" + ToString(remaining_count) + U"枚選択してください").drawAt(Scene::Center().movedBy(0, -350), Palette::Orange);
+
+				// 選択状況の表示（デバッグ用）
+				String statusText = U"選択済: " + ToString(selectedCards.size()) + U"枚 + 現在選択中: " + ToString(selectedDeckIndices.size()) + U"枚 = 合計 " + ToString(selectedCards.size() + selectedDeckIndices.size()) + U"/3枚";
+				instructionFont(statusText).drawAt(Scene::Center().movedBy(0, -320), Palette::Yellow);
+
+				// ホバー管理
+				HoverManager hoverManager;
+				Array<RectF> cardRects;
+
+				// カードのレイアウト設定と Rect の事前計算
+				// スロットサイズでカードを表示（手札形式：カードを半分ずつ重ねて表示）
+
+				// カードサイズ（スロットと同じ）
+				float cardWidth = object_pos[U"card_slot_size"].x;
+				float cardHeight = object_pos[U"card_slot_size"].y;
+
+				// カード枚数を取得
+				size_t cardCount = viewingSpecial ?
+					gameState->getSpecialDeck()->getCards().size() :
+					gameState->getDeck()->getCards().size();
+
+				// 手札形式の総幅を計算（各カードが半分ずつ重なる）
+				float cardSpacing = cardWidth / 2.0f;
+				float totalWidth = cardSpacing * (cardCount - 1) + cardWidth;
+
+				// 利用可能な画面幅（両端にマージンを確保）
+				const float screenMargin = 100.0f;
+				const float availableWidth = Scene::Width() - screenMargin * 2;
+
+				// スクロール可能かどうか
+				bool needsScroll = totalWidth > availableWidth;
+
+				// スクロールオフセットの取得と更新
+				double scrollOffset = gameState->getReconScrollOffset();
+
+				// Y座標（中央）
+				float centerY = Scene::Center().y;
+
+				// カード表示領域の定義
+				RectF viewArea(screenMargin, centerY - cardHeight / 2.0f - 50, availableWidth, cardHeight + 100);
+
+				if (needsScroll)
+				{
+					// スクロール処理
+					// マウスホイールでスクロール
+					scrollOffset += Mouse::Wheel() * 30.0;
+
+					// 左右矢印キーでもスクロール
+					if (KeyLeft.pressed())
+					{
+						scrollOffset += 5.0;
+					}
+					if (KeyRight.pressed())
+					{
+						scrollOffset -= 5.0;
+					}
+
+					// スクロール範囲の制限
+					double maxScroll = 0.0;
+					double minScroll = -(totalWidth - availableWidth);
+					scrollOffset = Clamp(scrollOffset, minScroll, maxScroll);
+
+					// スクロールバーの表示
+					float barWidth = availableWidth * (availableWidth / totalWidth);
+					float barX = screenMargin - (scrollOffset / minScroll) * (availableWidth - barWidth);
+					RectF scrollBar(barX, viewArea.y + viewArea.h - 10, barWidth, 8);
+					scrollBar.draw(ColorF(0.5, 0.5, 0.5, 0.7));
+
+					// スクロール可能であることを示すテキスト
+					smallFont(U"← → キーまたはマウスホイールでスクロール").drawAt(Scene::Center().x, viewArea.y + viewArea.h + 20, Palette::Gray);
+				}
+				else
+				{
+					// スクロール不要な場合はリセット
+					scrollOffset = 0.0;
+				}
+
+				// スクロールオフセットを保存（次のフレームで使用するため）
+				gameState->setReconScrollOffset(scrollOffset);
+
+				// カードのRectを計算（スクロールオフセットを適用）
+				float startX = needsScroll ? screenMargin + scrollOffset : (Scene::Width() - totalWidth) / 2.0f;
+
+				for (size_t i = 0; i < cardCount; ++i)
+				{
+					const double centerX = startX + cardWidth / 2.0f + i * cardSpacing;
+					cardRects << RectF{ Arg::center(centerX, centerY), cardWidth, cardHeight };
+				}
+
+				hoverManager.updateHover(cardRects);
+				const auto& hoveredIndex = hoverManager.hoveredIndex();
+
+				// カードの描画（ホバーされていないもの）
 				if (viewingSpecial)
 				{
 					const auto& cards = gameState->getSpecialDeck()->getCards();
-					float cardWidth = 80;
-					float cardHeight = 120;
-					int cardsPerRow = 5;
-					float startX = Scene::Center().x - (cardWidth * cardsPerRow + 10 * (cardsPerRow - 1)) / 2;
-					float startY = Scene::Center().y - 150;
-
 					for (size_t i = 0; i < cards.size(); ++i)
 					{
-						int row = i / cardsPerRow;
-						int col = i % cardsPerRow;
-						float cardX = startX + col * (cardWidth + 10);
-						float cardY = startY + row * (cardHeight + 10);
-						RectF cardRect(cardX, cardY, cardWidth, cardHeight);
-
-						// カードを描画（位置指定版を使用）
-						cards[i].draw(cardRect);
-
-						// クリックで選択
-						if (cardRect.leftClicked() && selectedCards.size() < 3)
+						if (hoveredIndex && *hoveredIndex == i) continue;
+						// 表示領域内のみ描画
+						if (cardRects[i].x + cardRects[i].w > screenMargin && cardRects[i].x < Scene::Width() - screenMargin)
 						{
-							auto removedCard = gameState->getSpecialDeck()->removeCard(i);
-							if (removedCard)
-							{
-								selectedCards.push_back(removedCard);
-								cardFromSpecial.push_back(true);
-								gameState->setReconPhase(0); // Phase 0に戻る
-							}
-							break;
+							cards[i].draw(cardRects[i]);
 						}
 					}
 				}
 				else
 				{
 					const auto& cards = gameState->getDeck()->getCards();
-					float cardWidth = 80;
-					float cardHeight = 120;
-					int cardsPerRow = 10;
-					float startX = Scene::Center().x - (cardWidth * cardsPerRow + 10 * (cardsPerRow - 1)) / 2;
-					float startY = Scene::Center().y - 200;
-
-					for (size_t i = 0; i < cards.size() && i < 30; ++i) // 最大30枚表示
+					for (size_t i = 0; i < cards.size(); ++i)
 					{
-						int row = i / cardsPerRow;
-						int col = i % cardsPerRow;
-						float cardX = startX + col * (cardWidth + 10);
-						float cardY = startY + row * (cardHeight + 10);
-						RectF cardRect(cardX, cardY, cardWidth, cardHeight);
-
-						// カードを描画（位置指定版を使用）
-						cards[i].draw(cardRect);
-
-						// クリックで選択
-						if (cardRect.leftClicked() && selectedCards.size() < 3)
+						if (hoveredIndex && *hoveredIndex == i) continue;
+						// 表示領域内のみ描画
+						if (cardRects[i].x + cardRects[i].w > screenMargin && cardRects[i].x < Scene::Width() - screenMargin)
 						{
-							auto removedCard = gameState->getDeck()->removeCard(i);
-							if (removedCard)
-							{
-								selectedCards.push_back(removedCard);
-								cardFromSpecial.push_back(false);
-								gameState->setReconPhase(0); // Phase 0に戻る
-							}
-							break;
+							cards[i].draw(cardRects[i]);
 						}
+					}
+				}
+
+				// 選択されているカードのハイライト表示（ホバーされていないもの）
+				for (size_t i = 0; i < cardRects.size(); ++i)
+				{
+					// ホバーされているカードはスキップ（後で拡大表示時に描画）
+					if (hoveredIndex && *hoveredIndex == i)
+						continue;
+
+					// 表示領域外はスキップ
+					if (cardRects[i].x + cardRects[i].w <= screenMargin || cardRects[i].x >= Scene::Width() - screenMargin)
+						continue;
+
+					auto it = std::find(selectedDeckIndices.begin(), selectedDeckIndices.end(), i);
+					if (it != selectedDeckIndices.end())
+					{
+						cardRects[i].drawFrame(5, Palette::Yellow);
+					}
+				}
+
+				// ホバーされているカードを最後に描画
+				RectF enlargedCard; // ホバーされているカードの拡大Rect
+				bool hasEnlargedCard = false;
+
+				if (hoveredIndex)
+				{
+					const int i = *hoveredIndex;
+					// 表示領域内のみ描画
+					if (cardRects[i].x + cardRects[i].w > screenMargin && cardRects[i].x < Scene::Width() - screenMargin)
+					{
+						enlargedCard = cardRects[i].scaledAt(cardRects[i].center(), 1.15).moveBy(0, -20);
+						hasEnlargedCard = true;
+
+						if (viewingSpecial)
+						{
+							gameState->getSpecialDeck()->getCards()[i].draw(enlargedCard);
+						}
+						else
+						{
+							gameState->getDeck()->getCards()[i].draw(enlargedCard);
+						}
+
+						// ホバーされているカードが選択されている場合、拡大されたカードにフレームを描画
+						auto it = std::find(selectedDeckIndices.begin(), selectedDeckIndices.end(), static_cast<size_t>(i));
+						if (it != selectedDeckIndices.end())
+						{
+							enlargedCard.drawFrame(5, Palette::Yellow);
+						}
+					}
+				}
+
+				// クリック処理（ホバー中の拡大カードを優先、なければ最前面のカードを選択）
+				if (MouseL.down())
+				{
+					bool cardClicked = false;
+
+					// まずホバー中の拡大カードをチェック
+					if (hasEnlargedCard && hoveredIndex)
+					{
+						if (enlargedCard.mouseOver())
+						{
+							const int i = *hoveredIndex;
+							auto it = std::find(selectedDeckIndices.begin(), selectedDeckIndices.end(), static_cast<size_t>(i));
+							if (it != selectedDeckIndices.end())
+							{
+								selectedDeckIndices.erase(it);
+							}
+							else if ((selectedDeckIndices.size() + selectedCards.size()) < 3)
+							{
+								selectedDeckIndices.push_back(static_cast<size_t>(i));
+							}
+							cardClicked = true;
+						}
+					}
+
+					// ホバーカードがクリックされなかった場合、通常のクリック判定
+					if (!cardClicked)
+					{
+						// 最前面のカード（右側のカード）から逆順にチェック
+						for (int i = static_cast<int>(cardRects.size()) - 1; i >= 0; --i)
+						{
+							// 表示領域外はスキップ
+							if (cardRects[i].x + cardRects[i].w <= screenMargin || cardRects[i].x >= Scene::Width() - screenMargin)
+								continue;
+
+							if (cardRects[i].mouseOver())
+							{
+								auto it = std::find(selectedDeckIndices.begin(), selectedDeckIndices.end(), static_cast<size_t>(i));
+								if (it != selectedDeckIndices.end())
+								{
+									selectedDeckIndices.erase(it);
+								}
+								else if ((selectedDeckIndices.size() + selectedCards.size()) < 3)
+								{
+									selectedDeckIndices.push_back(static_cast<size_t>(i));
+								}
+								break; // 最初に当たったカードのみ処理
+							}
+						}
+					}
+				}
+
+				// 合計3枚選択したら決定ボタンを表示
+				size_t totalSelected = selectedDeckIndices.size() + selectedCards.size();
+
+				// デバッグ: 決定ボタン表示条件の確認
+				debugFont(U"totalSelected=" + ToString(totalSelected) + U", 決定ボタン: " + (totalSelected == 3 ? U"表示" : U"非表示")).draw(10, 10, Palette::White);
+
+				// 確定ボタン（選択したカードがある場合のみ表示）
+				if (!selectedDeckIndices.empty())
+				{
+					RectF confirmButton(Scene::Center().x - 100, Scene::Height() - 150, 200, 60);
+					confirmButton.draw(Palette::Green);
+					instructionFont(U"確定").drawAt(confirmButton.center(), Palette::White);
+					if (confirmButton.leftClicked())
+					{
+						// 選択したカードをインデックスの大きい順に処理
+						std::sort(selectedDeckIndices.rbegin(), selectedDeckIndices.rend());
+
+						for (size_t index : selectedDeckIndices)
+						{
+							if (viewingSpecial)
+							{
+								auto removedCard = gameState->getSpecialDeck()->removeCard(index);
+								if (removedCard)
+								{
+									selectedCards.push_back(removedCard);
+									cardFromSpecial.push_back(true);
+								}
+							}
+							else
+							{
+								auto removedCard = gameState->getDeck()->removeCard(index);
+								if (removedCard)
+								{
+									selectedCards.push_back(removedCard);
+									cardFromSpecial.push_back(false);
+								}
+							}
+						}
+						selectedDeckIndices.clear();
+						gameState->setReconPhase(0); // Phase 0に戻る
 					}
 				}
 
@@ -286,6 +537,35 @@ void Main()
 				instructionFont(U"戻る").drawAt(backButton.center(), Palette::White);
 				if (backButton.leftClicked())
 				{
+					// 選択中のカードがあれば保存してから戻る
+					if (!selectedDeckIndices.empty())
+					{
+						// 選択したカードをインデックスの大きい順に処理
+						std::sort(selectedDeckIndices.rbegin(), selectedDeckIndices.rend());
+
+						for (size_t index : selectedDeckIndices)
+						{
+							if (viewingSpecial)
+							{
+								auto removedCard = gameState->getSpecialDeck()->removeCard(index);
+								if (removedCard)
+								{
+									selectedCards.push_back(removedCard);
+									cardFromSpecial.push_back(true);
+								}
+							}
+							else
+							{
+								auto removedCard = gameState->getDeck()->removeCard(index);
+								if (removedCard)
+								{
+									selectedCards.push_back(removedCard);
+									cardFromSpecial.push_back(false);
+								}
+							}
+						}
+						selectedDeckIndices.clear();
+					}
 					gameState->setReconPhase(0);
 				}
 			}
@@ -293,17 +573,39 @@ void Main()
 			{
 				// Phase 2: 手札から2枚選択して、それぞれの山札に戻す
 				auto& selectedIndices = gameState->getReconSelectedHandIndices();
+
+				// 念のため、Phase 2 開始時に選択済みカード情報をクリア（Phase 0から持ち越さない）
+				selectedCards.clear();
+				cardFromSpecial.clear();
+
 				instructionFont(U"手札から2枚選択して山札に戻してください（選択: " + ToString(selectedIndices.size()) + U"/2）").drawAt(Scene::Center().movedBy(0, -250), Palette::Orange);
 
 				// 手札のカードのクリック処理
 				Player* currentPlayer = gameState->getCurrentPlayer();
 				const auto& hand = currentPlayer->getHand();
-				for (size_t i = 0; i < hand.size(); ++i)
+
+				// DragManagerを更新してホバー判定を有効にする
+				Array<RectF> handCardRects;
+				for (int i = 0; i < hand.size(); ++i)
 				{
-					if (hand[i] && hand[i]->getRect().leftClicked())
+					if (hand[i])
 					{
-						// 既に選択されているかチェック
-						auto it = std::find(selectedIndices.begin(), selectedIndices.end(), static_cast<int>(i));
+						handCardRects << hand[i]->getRect();
+					}
+				}
+				currentPlayer->updateDrag(handCardRects);
+
+				// クリック処理
+				if (MouseL.down())
+				{
+					bool cardClicked = false;
+
+					// まずホバー中のカードをチェック
+					const auto& hoveredIndex = currentPlayer->getDragManager().hoveredIndex();
+					if (hoveredIndex)
+					{
+						int i = *hoveredIndex;
+						auto it = std::find(selectedIndices.begin(), selectedIndices.end(), i);
 						if (it != selectedIndices.end())
 						{
 							// 選択解除
@@ -312,18 +614,32 @@ void Main()
 						else if (selectedIndices.size() < 2)
 						{
 							// 選択追加（最大2枚）
-							selectedIndices.push_back(static_cast<int>(i));
+							selectedIndices.push_back(i);
 						}
-						break;
+						cardClicked = true;
 					}
-				}
 
-				// 選択したカードをハイライト表示
-				for (int index : selectedIndices)
-				{
-					if (index >= 0 && index < static_cast<int>(hand.size()) && hand[index])
+					// ホバー中でない場合は、最前面のカード（右側のカード）から逆順にチェック
+					if (!cardClicked)
 					{
-						hand[index]->getRect().drawFrame(5, Palette::Yellow);
+						for (int i = static_cast<int>(hand.size()) - 1; i >= 0; --i)
+						{
+							if (hand[i] && hand[i]->getRect().mouseOver())
+							{
+								auto it = std::find(selectedIndices.begin(), selectedIndices.end(), i);
+								if (it != selectedIndices.end())
+								{
+									// 選択解除
+									selectedIndices.erase(it);
+								}
+								else if (selectedIndices.size() < 2)
+								{
+									// 選択追加（最大2枚）
+									selectedIndices.push_back(i);
+								}
+								break;
+							}
+						}
 					}
 				}
 
@@ -333,33 +649,29 @@ void Main()
 					RectF confirmButton(Scene::Center().x - 100, Scene::Center().y + 200, 200, 60);
 					confirmButton.draw(Palette::Green);
 					instructionFont(U"確定").drawAt(confirmButton.center(), Palette::White);
-
+		
 					if (confirmButton.leftClicked())
 					{
 						// 選択したカードを山札に戻す
-						// まず、選択されたカードを保存（インデックスでアクセスするため）
-						std::vector<std::pair<int, std::shared_ptr<CardBase>>> cardsToReturn;
+						std::vector<std::shared_ptr<CardBase>> cardsToReturn;
 						for (int index : selectedIndices)
 						{
 							if (index >= 0 && index < static_cast<int>(hand.size()))
 							{
-								cardsToReturn.push_back({ index, hand[index] });
+								cardsToReturn.push_back(hand[index]);
 							}
 						}
 
-						// インデックスの大きい方から削除（配列の要素がずれないように）
+						// インデックスの大きい方から手札から削除
 						std::sort(selectedIndices.rbegin(), selectedIndices.rend());
-
 						for (int index : selectedIndices)
 						{
 							gameState->getCurrentPlayer()->removeCardFromHandByIndex(index);
 						}
 
-						// カードをそれぞれの山札に戻す
-						// 各カードが通常デッキ or 特殊デッキのどちらから来たかを判定
-						for (const auto& [index, card] : cardsToReturn)
+						// カードをそれぞれの山札の "上" に戻す
+						for (const auto& card : cardsToReturn)
 						{
-							// CardかSpecialCardかで判定
 							if (std::dynamic_pointer_cast<SpecialCard>(card))
 							{
 								gameState->getSpecialDeck()->returnCard(card);
@@ -369,24 +681,49 @@ void Main()
 								gameState->getDeck()->returnCard(card);
 							}
 						}
+						// 選択インデックスをクリア
+						selectedIndices.clear();
+						// 選択したカード情報もクリア
+						selectedCards.clear();
+						cardFromSpecial.clear();
 
-						// 各山札をシャッフル
-						gameState->getDeck()->shuffle();
-						gameState->getSpecialDeck()->shuffle();
-
-						// ReconModeを終了し、山札選択待ちへ
+						// ReconModeを終了し、山札選択をスキップして次のプレイヤーに交代
 						gameState->setReconMode(false);
-						gameState->setWaitingForDeckChoice(true);
+						gameState->setWaitingForDeckChoice(false);
+						gameState->changePlayer();
 					}
 				}
 			}
 		}
-		// DeploymentCard (配置展開カード) モードの処理
-		else if (gameState->isDeploymentMode())
+		else if (gameState->isWaitingForDeckChoice())
 		{
-			int sourceFlag = gameState->getDeploymentSourceFlag();
-			int sourceSlot = gameState->getDeploymentSourceSlot();
+			// 視覚的フィードバック：指示テキスト表示
 
+			instructionFont(U"山札を選んでカードを引いてください").drawAt(Scene::Center().movedBy(0, -250), Palette::Yellow);
+
+			// 視覚的フィードバック：デッキをホバー時にハイライト
+			if (gameState->getDeck()->getRect().mouseOver())
+			{
+				gameState->getDeck()->getRect().drawFrame(5, Palette::Yellow);
+			}
+			if (gameState->getSpecialDeck()->getRect().mouseOver())
+			{
+				gameState->getSpecialDeck()->getRect().drawFrame(5, Palette::Gold);
+			}
+
+			// 山札選択の入力処理
+			gameState->getCurrentPlayer()->handleDeckChoice(*gameState);
+		}
+		else
+		{
+			// 通常のカード配置入力処理
+			gameState->getCurrentPlayer()->handleInput(*gameState);
+		}
+
+		int sourceFlag = gameState->getDeploymentSourceFlag();
+		int sourceSlot = gameState->getDeploymentSourceSlot();
+		if (gameState->isDeploymentMode())
+		{
 			if (sourceFlag == -1)
 			{
 				// Phase 1: 自分のスロットカードを選択
@@ -514,31 +851,6 @@ void Main()
 				}
 			}
 		}
-		// 山札選択待ちかどうかで処理を分岐
-		else if (gameState->isWaitingForDeckChoice())
-		{
-			// 視覚的フィードバック：指示テキスト表示
-
-			instructionFont(U"山札を選んでカードを引いてください").drawAt(Scene::Center().movedBy(0, -250), Palette::Yellow);
-
-			// 視覚的フィードバック：デッキをホバー時にハイライト
-			if (gameState->getDeck()->getRect().mouseOver())
-			{
-				gameState->getDeck()->getRect().drawFrame(5, Palette::Yellow);
-			}
-			if (gameState->getSpecialDeck()->getRect().mouseOver())
-			{
-				gameState->getSpecialDeck()->getRect().drawFrame(5, Palette::Gold);
-			}
-
-			// 山札選択の入力処理
-			gameState->getCurrentPlayer()->handleDeckChoice(*gameState);
-		}
-		else
-		{
-			// 通常のカード配置入力処理
-			gameState->getCurrentPlayer()->handleInput(*gameState);
-		}
 
 		gameState->autoSetFinished();
 
@@ -557,6 +869,20 @@ void Main()
 		// Draw hands from the current player's perspective
 		currentPlayer->draw(*gameState);
 		opponentPlayer->drawBacks();
+
+		// ReconModeのPhase 2では選択したカードに黄色のフレームを描画
+		if (gameState->isReconMode() && gameState->getReconPhase() == 2)
+		{
+			auto& selectedIndices = gameState->getReconSelectedHandIndices();
+			const auto& hand = currentPlayer->getHand();
+			for (int index : selectedIndices)
+			{
+				if (index >= 0 && index < static_cast<int>(hand.size()) && hand[index])
+				{
+					hand[index]->getRect().drawFrame(5, Palette::Yellow);
+				}
+			}
+		}
 	}
 	const int winner = gameState->getWinner();
 	const String winnerText = U"Winner: Player " + ToString(winner + 1);
