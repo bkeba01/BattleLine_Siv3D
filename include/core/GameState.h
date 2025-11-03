@@ -54,6 +54,16 @@ class GameState {
         bool m_deployment_mode = false;
         int m_deployment_source_flag = -1;
         int m_deployment_source_slot = -1;
+
+        // EscapeCard (脱走カード) 用の状態
+        bool m_escape_mode = false;
+        int m_escape_target_flag = -1;
+        int m_escape_target_slot = -1;
+
+        // BetrayalCard (裏切りカード) 用の状態
+        bool m_betrayal_mode = false;
+        int m_betrayal_source_flag = -1;
+        int m_betrayal_source_slot = -1;
     public:
         GameState(Player player1, Player player2, Deck deck, SpecialDeck specialDeck);
 
@@ -111,6 +121,30 @@ class GameState {
         int getDeploymentSourceSlot() const { return m_deployment_source_slot; }
         void setDeploymentSourceSlot(int slot) { m_deployment_source_slot = slot; }
         void startDeploymentCard();
+
+        // EscapeCard用のメソッド
+        bool isEscapeMode() const { return m_escape_mode; }
+        void setEscapeMode(bool mode) { m_escape_mode = mode; }
+        int getEscapeTargetFlag() const { return m_escape_target_flag; }
+        void setEscapeTargetFlag(int flag) { m_escape_target_flag = flag; }
+        int getEscapeTargetSlot() const { return m_escape_target_slot; }
+        void setEscapeTargetSlot(int slot) { m_escape_target_slot = slot; }
+        void startEscapeCard();
+
+        // BetrayalCard用のメソッド
+        bool isBetrayalMode() const { return m_betrayal_mode; }
+        void setBetrayalMode(bool mode) { m_betrayal_mode = mode; }
+        int getBetrayalSourceFlag() const { return m_betrayal_source_flag; }
+        void setBetrayalSourceFlag(int flag) { m_betrayal_source_flag = flag; }
+        int getBetrayalSourceSlot() const { return m_betrayal_source_slot; }
+        void setBetrayalSourceSlot(int slot) { m_betrayal_source_slot = slot; }
+        void startBetrayalCard();
+
+        // 特殊カード処理メソッド（UIロジック）
+        void handleReconCard(const s3d::Font& instructionFont, const s3d::Font& smallFont, const HashTable<String, Vec2>& object_pos);
+        void handleDeploymentCard(const s3d::Font& instructionFont);
+        void handleEscapeCard(const s3d::Font& instructionFont);
+        void handleBetrayalCard(const s3d::Font& instructionFont);
 };
 
 #endif

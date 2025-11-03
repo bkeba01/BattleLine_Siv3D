@@ -36,10 +36,10 @@ void ConspiracySlot::placeConspiracyCard(GameState& gameState, const SpecialCard
 			gameState.startDeploymentCard();
 			break;
 		case ste_EscapeCard:
-			// TODO: 実装
+			gameState.startEscapeCard();
 			break;
 		case ste_BetrayalCard:
-			// TODO: 実装
+			gameState.startBetrayalCard();
 			break;
 		default:
 			break;

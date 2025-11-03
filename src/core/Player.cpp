@@ -228,6 +228,13 @@ void Player::handleInput(GameState& gameState)
 			// 特殊カードの場合
 			else if (auto specialCardPtr = std::dynamic_pointer_cast<SpecialCard>(m_hand[droppedHandIndex]))
 			{
+				// スペシャルカード使用制限チェック
+				if (!gameState.getCurrentPlayer()->getCanUseSpecialCard())
+				{
+					// 使用不可の場合は処理をスキップ
+					return;
+				}
+
 				SpecialCardCategory category = specialCardPtr->getCategory();
 
 				// 部隊カード - スロットに配置（通常カードと同じ）
@@ -292,6 +299,13 @@ void Player::handleInput(GameState& gameState)
 						}
 					}
 				}
+
+				// 配置成功時、フラグを更新
+				if (droppedInSlot)
+				{
+					gameState.getCurrentPlayer()->setCanUseSpecialCard(false);
+					gameState.getOpponentPlayer()->setCanUseSpecialCard(true);
+				}
 			}
 		}
 	}
@@ -349,7 +363,18 @@ void Player::drawPlayerCards()
 		if (not isHeld && not isHovered)
 		{
 			m_hand[i]->setRect(m_cardRects[i]);
-			m_hand[i]->draw();
+
+			// スペシャルカードで使用不可の場合はグレーアウト
+			auto specialCardPtr = std::dynamic_pointer_cast<SpecialCard>(m_hand[i]);
+			if (specialCardPtr && !m_canUseSpecialCard)
+			{
+				ScopedColorMul2D colorMul(ColorF(1.0, 0.5));
+				m_hand[i]->draw();
+			}
+			else
+			{
+				m_hand[i]->draw();
+			}
 		}
 	}
 }
@@ -364,7 +389,18 @@ void Player::drawHoveredAndHeldCards(GameState& gameState)
 		const int i = *currentHoveredRectsIndex;
 		const RectF enlargedCard = m_cardRects[i].scaledAt(m_cardRects[i].center(), 1.15).moveBy(0, -20);
 		m_hand[i]->setRect(enlargedCard);
-		m_hand[i]->draw();
+
+		// スペシャルカードで使用不可の場合はグレーアウト
+		auto specialCardPtr = std::dynamic_pointer_cast<SpecialCard>(m_hand[i]);
+		if (specialCardPtr && !m_canUseSpecialCard)
+		{
+			ScopedColorMul2D colorMul(ColorF(1.0, 0.5));
+			m_hand[i]->draw();
+		}
+		else
+		{
+			m_hand[i]->draw();
+		}
 	}
 
 	if (currentHeldRectsIndex)
@@ -449,6 +485,17 @@ void Player::drawHoveredAndHeldCards(GameState& gameState)
 		}
 
 		m_hand[*currentHeldRectsIndex]->setRect(m_dragManager.getDraggingRect(cardSize.x, cardSize.y));
-		m_hand[*currentHeldRectsIndex]->draw();
+
+		// スペシャルカードで使用不可の場合はグレーアウト
+		auto specialCardPtr = std::dynamic_pointer_cast<SpecialCard>(m_hand[*currentHeldRectsIndex]);
+		if (specialCardPtr && !m_canUseSpecialCard)
+		{
+			ScopedColorMul2D colorMul(ColorF(1.0, 0.5));
+			m_hand[*currentHeldRectsIndex]->draw();
+		}
+		else
+		{
+			m_hand[*currentHeldRectsIndex]->draw();
+		}
 	}
 }

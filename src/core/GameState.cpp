@@ -188,3 +188,17 @@ void GameState::startDeploymentCard()
 	m_deployment_source_slot = -1;
 }
 
+void GameState::startEscapeCard()
+{
+	m_escape_mode = true;
+	m_escape_target_flag = -1;
+	m_escape_target_slot = -1;
+}
+
+void GameState::startBetrayalCard()
+{
+	m_betrayal_mode = true;
+	m_betrayal_source_flag = -1;
+	m_betrayal_source_slot = -1;
+}
+

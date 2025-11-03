@@ -79,10 +79,14 @@ bool SpecialDeck::isEmpty() const {
     return m_cards.empty();
 }
 
-void SpecialDeck::drawDeck() const
+void SpecialDeck::drawDeck(bool canUseSpecialCard) const
 {
     // 特殊デッキ用の描画（金色のグラデーション）
     m_rect.draw(Arg::top = ColorF{ 0.9, 0.8, 0.3 }, Arg::bottom = ColorF{ 0.8, 0.6, 0.2 });
-    m_rect.drawFrame(4, 0, Palette::Gold);
+
+    // 枠線の色を使用可否に応じて変更
+    ColorF frameColor = canUseSpecialCard ? Palette::Lime : Palette::Gray;
+    m_rect.drawFrame(4, 0, frameColor);
+
     m_back_texture.resized(45).drawAt(m_rect.center().movedBy(0, 0));
 }

@@ -25,7 +25,7 @@ class SpecialDeck {
         bool isEmpty() const;
         void setRect(RectF rect) { m_rect = rect; }
         RectF getRect() const { return m_rect; }
-        void drawDeck() const;
+        void drawDeck(bool canUseSpecialCard = true) const;
 };
 
 #endif

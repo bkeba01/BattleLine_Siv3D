@@ -432,6 +432,7 @@
     <ClCompile Include="src\core\ConspiracySlot.cpp" />
     <ClCompile Include="src\core\Flag.cpp" />
     <ClCompile Include="src\core\GameState.cpp" />
+    <ClCompile Include="src\core\GameStateSpecialCardHandlers.cpp" />
     <ClCompile Include="src\core\Player.cpp" />
     <ClCompile Include="src\core\Slot.cpp" />
     <ClCompile Include="src\Main.cpp" />

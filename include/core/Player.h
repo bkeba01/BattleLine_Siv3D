@@ -29,6 +29,7 @@ class Player
 		Vec2 m_card_hand_size;
 		Vec2 m_card_hand_space;
 		DraggedCardType m_draggedCardType = DraggedCardType::None;
+		bool m_canUseSpecialCard = true;
 
     public:
         Player(int playerId,Deck &deck,Vec2,Vec2);
@@ -62,6 +63,9 @@ class Player
 		void drawBacks();
 
 		//void drawopponentBacks() const;
+
+		void setCanUseSpecialCard(bool canUse) { m_canUseSpecialCard = canUse; }
+		bool getCanUseSpecialCard() const { return m_canUseSpecialCard; }
 
 	private:
 		void drawPlayerCards();

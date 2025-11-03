@@ -872,6 +872,9 @@
     <ClCompile Include="src\core\GameState.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\core\GameStateSpecialCardHandlers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\core\Player.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

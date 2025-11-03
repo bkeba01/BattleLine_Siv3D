@@ -236,26 +236,47 @@ void Flag::checkRoleStatus_normal(GameState& gameState, Player* currentPlayer,Sl
 		return;
 	}
 
-	// CardBaseからCardへのダウンキャスト
-	auto firstCard = std::dynamic_pointer_cast<Card>(currentSlot->getCards()[playerIndex][static_cast<int>(ste_SlotCardMinNum)]);
+	// カード情報を収集（連番判定のためソートが必要）
+	struct CardInfo {
+		int value;
+		int color;
+	};
 
-	// maxCardCountまでのカードのみをチェック
-	auto begin = currentSlot->getCards()[playerIndex].begin();
-	auto end = begin + maxCardCount;
+	std::vector<CardInfo> cardInfos;
+	for (int i = 0; i < maxCardCount; ++i)
+	{
+		auto card = std::dynamic_pointer_cast<Card>(currentSlot->getCards()[playerIndex][i]);
+		if (card)
+		{
+			cardInfos.push_back({card->getValue(), card->getColor()});
+		}
+	}
 
-	same_color[playerIndex] = std::all_of(begin, end, [&](const std::shared_ptr<CardBase>& c) {
-		auto card = std::dynamic_pointer_cast<Card>(c);
-		return card && firstCard && card->getColor() == firstCard->getColor();
+	// 値でソート（連番チェック用）
+	std::sort(cardInfos.begin(), cardInfos.end(), [](const CardInfo& a, const CardInfo& b) {
+		return a.value < b.value;
 	});
-	same_value[playerIndex] = std::all_of(begin, end, [&](const std::shared_ptr<CardBase>& c) {
-		auto card = std::dynamic_pointer_cast<Card>(c);
-		return card && firstCard && card->getValue() == firstCard->getValue();
+
+	// 同色チェック
+	same_color[playerIndex] = std::all_of(cardInfos.begin(), cardInfos.end(), [&](const CardInfo& info) {
+		return info.color == cardInfos[0].color;
 	});
-	serial_value[playerIndex] = std::adjacent_find(begin, end, [](const std::shared_ptr<CardBase>& a, const std::shared_ptr<CardBase>& b) {
-		auto cardA = std::dynamic_pointer_cast<Card>(a);
-		auto cardB = std::dynamic_pointer_cast<Card>(b);
-		return !cardA || !cardB || cardB->getValue() - cardA->getValue() != 1;
-	}) == end;
+
+	// 同値チェック
+	same_value[playerIndex] = std::all_of(cardInfos.begin(), cardInfos.end(), [&](const CardInfo& info) {
+		return info.value == cardInfos[0].value;
+	});
+
+	// 連番チェック
+	serial_value[playerIndex] = true;
+	for (size_t i = 1; i < cardInfos.size(); ++i)
+	{
+		if (cardInfos[i].value != cardInfos[i - 1].value + 1)
+		{
+			serial_value[playerIndex] = false;
+			break;
+		}
+	}
 
 	if (same_color[playerIndex] && serial_value[playerIndex])
 	{
