@@ -6,6 +6,367 @@
 #include "core/GameState.h"
 #include "core/SpecialCard.h"
 #include "core/WeatherSlot.h"
+#include <algorithm>
+#include <vector>
+
+// ワイルドカード最適化のための構造体
+struct CardInfo {
+	int value;
+	int color;
+	bool isWild;
+	SpecialCardType wildType;
+
+	CardInfo(int v, int c, bool wild = false, SpecialCardType type = ste_WildCard)
+		: value(v), color(c), isWild(wild), wildType(type) {}
+};
+
+// ワイルドカードが取れる値の範囲を取得
+std::vector<int> getPossibleValues(SpecialCardType wildType) {
+	switch (wildType) {
+		case ste_WildCard_Eight:
+			return {8};
+		case ste_WildCard_Shield:
+			return {1, 2, 3};
+		case ste_WildCard:
+		default:
+			return {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+	}
+}
+
+// ストレートフラッシュを試す（最優先）
+bool tryAssignStraightFlush(std::vector<CardInfo>& cards, int maxCardCount, int& outRole) {
+	std::vector<CardInfo> normals, wilds;
+	for (auto& c : cards) {
+		if (c.isWild) wilds.push_back(c);
+		else normals.push_back(c);
+	}
+
+	// ワイルドカードのみの場合：デフォルトで最強のストレートフラッシュ
+	if (normals.empty()) {
+		int startValue = 11 - maxCardCount; // 3枚なら8,9,10 / 4枚なら7,8,9,10
+		for (int i = 0; i < maxCardCount; ++i) {
+			cards[i].color = 1; // 赤
+			cards[i].value = startValue + i;
+		}
+		outRole = ste_StraightFlush;
+		return true;
+	}
+
+	// 通常カードから色を決定
+	int targetColor = normals[0].color;
+
+	// 通常カードの値を収集
+	std::vector<int> normalValues;
+	for (auto& nc : normals) {
+		if (nc.color == targetColor) {
+			normalValues.push_back(nc.value);
+		}
+	}
+
+	// 色が統一できない場合は失敗
+	if (normalValues.size() != normals.size()) {
+		return false;
+	}
+
+	// 通常カードの値をソート
+	std::sort(normalValues.begin(), normalValues.end());
+
+	// ワイルドカードで連番を作れるか試す
+	int wildCount = wilds.size();
+
+	// 最小値から連番を作る戦略
+	int minVal = normalValues[0];
+	int maxVal = normalValues.back();
+
+	// パターン1: 最小値から上に伸ばす（例: 5,6,7 or 5,7 → 5,6,7）
+	std::vector<int> pattern;
+	for (int start = std::max(1, minVal - wildCount); start <= minVal; ++start) {
+		pattern.clear();
+		for (int v = start; v < start + maxCardCount; ++v) {
+			if (v < 1 || v > 10) break;
+			pattern.push_back(v);
+		}
+
+		if (pattern.size() != static_cast<size_t>(maxCardCount)) continue;
+
+		// このパターンで通常カードがすべて含まれているかチェック
+		bool allIncluded = true;
+		for (int nv : normalValues) {
+			if (std::find(pattern.begin(), pattern.end(), nv) == pattern.end()) {
+				allIncluded = false;
+				break;
+			}
+		}
+
+		if (!allIncluded) continue;
+
+		// ワイルドカードで埋められるかチェック
+		int wildIdx = 0;
+		bool canFill = true;
+		for (int pv : pattern) {
+			bool found = false;
+			for (int nv : normalValues) {
+				if (nv == pv) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				// ワイルドカードで埋める必要がある
+				if (wildIdx >= wildCount) {
+					canFill = false;
+					break;
+				}
+				auto possibleValues = getPossibleValues(wilds[wildIdx].wildType);
+				if (std::find(possibleValues.begin(), possibleValues.end(), pv) == possibleValues.end()) {
+					canFill = false;
+					break;
+				}
+				wildIdx++;
+			}
+		}
+
+		if (canFill && wildIdx == wildCount) {
+			// 成功！カードに割り当て
+			int cardIdx = 0;
+			wildIdx = 0;
+			for (int pv : pattern) {
+				bool isNormal = false;
+				for (auto& c : cards) {
+					if (!c.isWild && c.value == pv && c.color == targetColor) {
+						isNormal = true;
+						break;
+					}
+				}
+				if (!isNormal) {
+					// ワイルドカードを割り当て
+					while (cardIdx < cards.size() && !cards[cardIdx].isWild) cardIdx++;
+					if (cardIdx < cards.size()) {
+						cards[cardIdx].value = pv;
+						cards[cardIdx].color = targetColor;
+						cardIdx++;
+					}
+				}
+			}
+			outRole = ste_StraightFlush;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+// フォーカード/スリーカードを試す
+bool tryAssignSameValue(std::vector<CardInfo>& cards, int maxCardCount, int targetCount, int& outRole) {
+	std::vector<CardInfo> normals, wilds;
+	for (auto& c : cards) {
+		if (c.isWild) wilds.push_back(c);
+		else normals.push_back(c);
+	}
+
+	// ワイルドカードのみの場合
+	if (normals.empty()) {
+		int targetValue = 10; // デフォルトで最大値
+		for (auto& c : cards) {
+			auto possibleValues = getPossibleValues(c.wildType);
+			if (std::find(possibleValues.begin(), possibleValues.end(), targetValue) != possibleValues.end()) {
+				c.value = targetValue;
+				c.color = 1;
+			} else {
+				c.value = possibleValues.back(); // 制約内の最大値
+				c.color = 1;
+			}
+		}
+		outRole = (targetCount == 4) ? ste_FourOfKind : ste_ThreeOfKind;
+		return true;
+	}
+
+	// 通常カードから値を決定
+	int targetValue = normals[0].value;
+
+	// ワイルドカードで埋められるかチェック
+	int colorIdx = 1;
+	for (auto& c : cards) {
+		if (c.isWild) {
+			auto possibleValues = getPossibleValues(c.wildType);
+			if (std::find(possibleValues.begin(), possibleValues.end(), targetValue) != possibleValues.end()) {
+				c.value = targetValue;
+				c.color = colorIdx++;
+				if (colorIdx > 6) colorIdx = 1;
+			} else {
+				return false; // ワイルドカードの制約で同じ値にできない
+			}
+		}
+	}
+
+	outRole = (targetCount == 4) ? ste_FourOfKind : ste_ThreeOfKind;
+	return true;
+}
+
+// フラッシュを試す
+bool tryAssignFlush(std::vector<CardInfo>& cards, int maxCardCount, int& outRole) {
+	std::vector<CardInfo> normals, wilds;
+	for (auto& c : cards) {
+		if (c.isWild) wilds.push_back(c);
+		else normals.push_back(c);
+	}
+
+	// 通常カードから色を決定
+	int targetColor = normals.empty() ? 1 : normals[0].color;
+
+	// 色が統一できるかチェック
+	for (auto& nc : normals) {
+		if (nc.color != targetColor) {
+			return false;
+		}
+	}
+
+	// ワイルドカードに高い値を割り当て
+	int valueIdx = 10;
+	for (auto& c : cards) {
+		if (c.isWild) {
+			auto possibleValues = getPossibleValues(c.wildType);
+			// できるだけ高い値を選ぶ（通常カードと重複しないように）
+			bool found = false;
+			for (int v = 10; v >= 1; --v) {
+				if (std::find(possibleValues.begin(), possibleValues.end(), v) != possibleValues.end()) {
+					bool duplicate = false;
+					for (auto& nc : normals) {
+						if (nc.value == v) {
+							duplicate = true;
+							break;
+						}
+					}
+					if (!duplicate) {
+						c.value = v;
+						c.color = targetColor;
+						found = true;
+						break;
+					}
+				}
+			}
+			if (!found) {
+				c.value = possibleValues.back();
+				c.color = targetColor;
+			}
+		}
+	}
+
+	outRole = ste_Flush;
+	return true;
+}
+
+// ストレートを試す
+bool tryAssignStraight(std::vector<CardInfo>& cards, int maxCardCount, int& outRole) {
+	// ストレートフラッシュと同じロジックだが、色の制約なし
+	std::vector<CardInfo> normals, wilds;
+	for (auto& c : cards) {
+		if (c.isWild) wilds.push_back(c);
+		else normals.push_back(c);
+	}
+
+	if (normals.empty()) {
+		int startValue = 11 - maxCardCount;
+		for (int i = 0; i < maxCardCount; ++i) {
+			cards[i].color = (i % 6) + 1;
+			cards[i].value = startValue + i;
+		}
+		outRole = ste_Straight;
+		return true;
+	}
+
+	std::vector<int> normalValues;
+	for (auto& nc : normals) {
+		normalValues.push_back(nc.value);
+	}
+	std::sort(normalValues.begin(), normalValues.end());
+
+	int wildCount = wilds.size();
+	int minVal = normalValues[0];
+
+	for (int start = std::max(1, minVal - wildCount); start <= minVal; ++start) {
+		std::vector<int> pattern;
+		for (int v = start; v < start + maxCardCount; ++v) {
+			if (v < 1 || v > 10) break;
+			pattern.push_back(v);
+		}
+
+		if (pattern.size() != static_cast<size_t>(maxCardCount)) continue;
+
+		bool allIncluded = true;
+		for (int nv : normalValues) {
+			if (std::find(pattern.begin(), pattern.end(), nv) == pattern.end()) {
+				allIncluded = false;
+				break;
+			}
+		}
+
+		if (!allIncluded) continue;
+
+		int wildIdx = 0;
+		bool canFill = true;
+		for (int pv : pattern) {
+			bool found = false;
+			for (int nv : normalValues) {
+				if (nv == pv) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				if (wildIdx >= wildCount) {
+					canFill = false;
+					break;
+				}
+				auto possibleValues = getPossibleValues(wilds[wildIdx].wildType);
+				if (std::find(possibleValues.begin(), possibleValues.end(), pv) == possibleValues.end()) {
+					canFill = false;
+					break;
+				}
+				wildIdx++;
+			}
+		}
+
+		if (canFill && wildIdx == wildCount) {
+			int cardIdx = 0;
+			wildIdx = 0;
+			int colorIdx = 1;
+			for (int pv : pattern) {
+				bool isNormal = false;
+				for (auto& c : cards) {
+					if (!c.isWild && c.value == pv) {
+						isNormal = true;
+						break;
+					}
+				}
+				if (!isNormal) {
+					while (cardIdx < cards.size() && !cards[cardIdx].isWild) cardIdx++;
+					if (cardIdx < cards.size()) {
+						cards[cardIdx].value = pv;
+						cards[cardIdx].color = colorIdx++;
+						if (colorIdx > 6) colorIdx = 1;
+						cardIdx++;
+					}
+				}
+			}
+			outRole = ste_Straight;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+// 役なしで最大値を割り当て
+void assignMaxValue(std::vector<CardInfo>& cards, int maxCardCount) {
+	for (auto& c : cards) {
+		if (c.isWild) {
+			auto possibleValues = getPossibleValues(c.wildType);
+			c.value = possibleValues.back(); // 最大値
+			c.color = 1;
+		}
+	}
+}
 
 Flag::Flag(int position) : m_position(position) 
 {
@@ -108,23 +469,14 @@ void Flag::checkRoleStatus_Special(GameState& gameState,Player* currentPlayer,Sl
 {
 	int playerIndex = currentPlayer->getId();
 
-	std::vector<bool> same_color(ste_PlayerMakeNum, false);
-	std::vector<bool> same_value(ste_PlayerMakeNum, false);
-	std::vector<bool> serial_value(ste_PlayerMakeNum, false);
-
 	// 泥カードがある場合は4枚まで、そうでない場合は3枚まで
 	WeatherSlot& weatherSlot = gameState.getWeatherSlot(m_slotIndex);
 	int maxCardCount = weatherSlot.hasMudCard() ? 4 : 3;
 
-	// カードを値と色のペアとして扱う構造体
-	struct CardInfo {
-		int value;
-		int color;
-	};
-
+	// カード情報を収集
 	std::vector<CardInfo> cardInfos;
+	std::vector<std::shared_ptr<SpecialCard>> wildCardPtrs; // ワイルドカードへのポインタを保存
 
-	// 全てのカード（通常カードとSpecialCard）から値と色を取得
 	for (int i = ste_SlotCardMinNum; i < maxCardCount; ++i)
 	{
 		auto cardBase = currentSlot->getCards()[playerIndex][i];
@@ -133,19 +485,30 @@ void Flag::checkRoleStatus_Special(GameState& gameState,Player* currentPlayer,Sl
 			continue;
 		}
 
-		// SpecialCardとして取得を試みる
+		// SpecialCardかチェック
 		auto specialCard = std::dynamic_pointer_cast<SpecialCard>(cardBase);
 		if (specialCard)
 		{
-			cardInfos.push_back({specialCard->getValue(), specialCard->getColor()});
+			// ワイルドカード系かチェック
+			SpecialCardType stype = specialCard->getType();
+			if (stype == ste_WildCard || stype == ste_WildCard_Eight || stype == ste_WildCard_Shield)
+			{
+				cardInfos.push_back(CardInfo(0, 0, true, stype));
+				wildCardPtrs.push_back(specialCard);
+			}
+			else
+			{
+				// ワイルドカードではない特殊カード（既に値と色が設定されている）
+				cardInfos.push_back(CardInfo(specialCard->getValue(), specialCard->getColor(), false));
+			}
 		}
 		else
 		{
-			// 通常カードとして取得
+			// 通常カード
 			auto normalCard = std::dynamic_pointer_cast<Card>(cardBase);
 			if (normalCard)
 			{
-				cardInfos.push_back({normalCard->getValue(), normalCard->getColor()});
+				cardInfos.push_back(CardInfo(normalCard->getValue(), normalCard->getColor(), false));
 			}
 		}
 	}
@@ -157,54 +520,146 @@ void Flag::checkRoleStatus_Special(GameState& gameState,Player* currentPlayer,Sl
 		return;
 	}
 
-	// 値でソート（連番チェック用）
-	std::sort(cardInfos.begin(), cardInfos.end(), [](const CardInfo& a, const CardInfo& b) {
-		return a.value < b.value;
-	});
+	// ヒューリスティック: 役の優先順位で試す
+	// 泥カードで4枚の場合の優先順位:
+	//   フォーカード > フラッシュ(4枚) > ストレート(4枚) > スリーカード
+	// 3枚の場合の優先順位:
+	//   スリーカード > フラッシュ(3枚) > ストレート(3枚)
+	int assignedRole = ste_NoneRole;
 
-	// 同色チェック
-	same_color[playerIndex] = std::all_of(cardInfos.begin(), cardInfos.end(), [&](const CardInfo& info) {
-		return info.color == cardInfos[0].color;
-	});
-
-	// 同値チェック
-	same_value[playerIndex] = std::all_of(cardInfos.begin(), cardInfos.end(), [&](const CardInfo& info) {
-		return info.value == cardInfos[0].value;
-	});
-
-	// 連番チェック
-	serial_value[playerIndex] = true;
-	for (size_t i = 1; i < cardInfos.size(); ++i)
+	// 1. ストレートフラッシュを試す（最強）
+	if (tryAssignStraightFlush(cardInfos, maxCardCount, assignedRole))
 	{
-		if (cardInfos[i].value != cardInfos[i - 1].value + 1)
+		// 成功：ワイルドカードに値と色を設定
+		int wildIdx = 0;
+		for (size_t i = 0; i < cardInfos.size(); ++i)
 		{
-			serial_value[playerIndex] = false;
-			break;
+			if (cardInfos[i].isWild)
+			{
+				wildCardPtrs[wildIdx]->setValue(cardInfos[i].value);
+				wildCardPtrs[wildIdx]->setColor(cardInfos[i].color);
+				wildIdx++;
+			}
+		}
+		role[playerIndex] = assignedRole;
+		return;
+	}
+
+	// 2. フォーカードを試す（4枚の場合のみ）
+	if (maxCardCount == 4 && tryAssignSameValue(cardInfos, maxCardCount, 4, assignedRole))
+	{
+		int wildIdx = 0;
+		for (size_t i = 0; i < cardInfos.size(); ++i)
+		{
+			if (cardInfos[i].isWild)
+			{
+				wildCardPtrs[wildIdx]->setValue(cardInfos[i].value);
+				wildCardPtrs[wildIdx]->setColor(cardInfos[i].color);
+				wildIdx++;
+			}
+		}
+		role[playerIndex] = assignedRole;
+		return;
+	}
+
+	// 3. フラッシュを試す（4枚の場合のみ、ストレート4枚より強い）
+	if (maxCardCount == 4 && tryAssignFlush(cardInfos, maxCardCount, assignedRole))
+	{
+		int wildIdx = 0;
+		for (size_t i = 0; i < cardInfos.size(); ++i)
+		{
+			if (cardInfos[i].isWild)
+			{
+				wildCardPtrs[wildIdx]->setValue(cardInfos[i].value);
+				wildCardPtrs[wildIdx]->setColor(cardInfos[i].color);
+				wildIdx++;
+			}
+		}
+		role[playerIndex] = assignedRole;
+		return;
+	}
+
+	// 4. ストレートを試す（4枚の場合のみ、スリーカードより強い）
+	if (maxCardCount == 4 && tryAssignStraight(cardInfos, maxCardCount, assignedRole))
+	{
+		int wildIdx = 0;
+		for (size_t i = 0; i < cardInfos.size(); ++i)
+		{
+			if (cardInfos[i].isWild)
+			{
+				wildCardPtrs[wildIdx]->setValue(cardInfos[i].value);
+				wildCardPtrs[wildIdx]->setColor(cardInfos[i].color);
+				wildIdx++;
+			}
+		}
+		role[playerIndex] = assignedRole;
+		return;
+	}
+
+	// 5. スリーカードを試す
+	if (tryAssignSameValue(cardInfos, maxCardCount, maxCardCount, assignedRole))
+	{
+		int wildIdx = 0;
+		for (size_t i = 0; i < cardInfos.size(); ++i)
+		{
+			if (cardInfos[i].isWild)
+			{
+				wildCardPtrs[wildIdx]->setValue(cardInfos[i].value);
+				wildCardPtrs[wildIdx]->setColor(cardInfos[i].color);
+				wildIdx++;
+			}
+		}
+		role[playerIndex] = assignedRole;
+		return;
+	}
+
+	// 6. フラッシュを試す（3枚の場合のみ、4枚の場合は既に試した）
+	if (maxCardCount == 3 && tryAssignFlush(cardInfos, maxCardCount, assignedRole))
+	{
+		int wildIdx = 0;
+		for (size_t i = 0; i < cardInfos.size(); ++i)
+		{
+			if (cardInfos[i].isWild)
+			{
+				wildCardPtrs[wildIdx]->setValue(cardInfos[i].value);
+				wildCardPtrs[wildIdx]->setColor(cardInfos[i].color);
+				wildIdx++;
+			}
+		}
+		role[playerIndex] = assignedRole;
+		return;
+	}
+
+	// 7. ストレートを試す（3枚の場合のみ、4枚の場合は既に試した）
+	if (maxCardCount == 3 && tryAssignStraight(cardInfos, maxCardCount, assignedRole))
+	{
+		int wildIdx = 0;
+		for (size_t i = 0; i < cardInfos.size(); ++i)
+		{
+			if (cardInfos[i].isWild)
+			{
+				wildCardPtrs[wildIdx]->setValue(cardInfos[i].value);
+				wildCardPtrs[wildIdx]->setColor(cardInfos[i].color);
+				wildIdx++;
+			}
+		}
+		role[playerIndex] = assignedRole;
+		return;
+	}
+
+	// 8. 役なし：最大値を割り当て
+	assignMaxValue(cardInfos, maxCardCount);
+	int wildIdx = 0;
+	for (size_t i = 0; i < cardInfos.size(); ++i)
+	{
+		if (cardInfos[i].isWild)
+		{
+			wildCardPtrs[wildIdx]->setValue(cardInfos[i].value);
+			wildCardPtrs[wildIdx]->setColor(cardInfos[i].color);
+			wildIdx++;
 		}
 	}
-
-	// 役判定
-	if (same_color[playerIndex] && serial_value[playerIndex])
-	{
-		role[playerIndex] = ste_StraightFlush;
-	}
-	else if (same_value[playerIndex])
-	{
-		// 4枚の場合はFourOfKind、3枚の場合はThreeOfKind
-		role[playerIndex] = (maxCardCount == 4) ? ste_FourOfKind : ste_ThreeOfKind;
-	}
-	else if (same_color[playerIndex])
-	{
-		role[playerIndex] = ste_Flush;
-	}
-	else if (serial_value[playerIndex])
-	{
-		role[playerIndex] = ste_Straight;
-	}
-	else
-	{
-		role[playerIndex] = ste_NoneRole;
-	}
+	role[playerIndex] = ste_NoneRole;
 }
 
 void Flag::checkRoleStatus_normal(GameState& gameState, Player* currentPlayer,Slot* currentSlot)
@@ -372,11 +827,15 @@ void Flag::checkFlagStatus(GameState& gameState)
         std::vector<int> total_value(ste_PlayerMakeNum,0);
         total_value[static_cast<int>(ste_Player1)]=std::accumulate(currentSlot.getCards()[static_cast<int>(ste_Player1)].begin(), currentSlot.getCards()[static_cast<int>(ste_Player1)].end(), 0, [](int sum, const std::shared_ptr<CardBase>& c){
             auto card = std::dynamic_pointer_cast<Card>(c);
-            return card ? sum + card->getValue() : sum;
+            if (card) return sum + card->getValue();
+            auto specialCard = std::dynamic_pointer_cast<SpecialCard>(c);
+            return specialCard ? sum + specialCard->getValue() : sum;
         });
         total_value[static_cast<int>(ste_Player2)]=std::accumulate(currentSlot.getCards()[static_cast<int>(ste_Player2)].begin(), currentSlot.getCards()[static_cast<int>(ste_Player2)].end(), 0, [](int sum, const std::shared_ptr<CardBase>& c){
             auto card = std::dynamic_pointer_cast<Card>(c);
-            return card ? sum + card->getValue() : sum;
+            if (card) return sum + card->getValue();
+            auto specialCard = std::dynamic_pointer_cast<SpecialCard>(c);
+            return specialCard ? sum + specialCard->getValue() : sum;
         });
         if(total_value[static_cast<int>(ste_Player1)] > total_value[static_cast<int>(ste_Player2)])
         {
@@ -419,7 +878,6 @@ void Flag::drawWinnerFlag(GameState& gamestate)
 {
 	if (m_take_flag == static_cast<int>(ste_NonePlayer))
 	{
-		return;
 		m_texture.drawAt(m_draw_position.x,m_draw_position.y);
 	}
 	else if (m_take_flag== gamestate.getCurrentPlayer()->getId())

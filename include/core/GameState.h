@@ -1,6 +1,7 @@
 ﻿#ifndef GAMESTATE_H
 #define GAMESTATE_H
 
+#include <Siv3D.hpp>
 #include <vector>
 #include <iostream>
 #include <memory>
@@ -11,8 +12,13 @@
 #include "Slot.h"
 #include "WeatherSlot.h"
 #include "ConspiracySlot.h"
+#include "NetworkEvents.h"
 
 class SpecialCard;
+
+namespace s3d {
+	class Multiplayer_Photon;
+}
 
 enum {
     NONE = -1,
@@ -64,6 +70,14 @@ class GameState {
         bool m_betrayal_mode = false;
         int m_betrayal_source_flag = -1;
         int m_betrayal_source_slot = -1;
+
+        // ネットワークマルチプレイ用の状態
+        s3d::Multiplayer_Photon* m_network = nullptr;
+        bool m_is_multiplayer = false;
+        bool m_is_host = false;
+        int m_local_player_index = 0;  // 0: Player1, 1: Player2
+        bool m_waiting_for_opponent = false;
+        uint32_t m_game_seed = 0;
     public:
         GameState(Player player1, Player player2, Deck deck, SpecialDeck specialDeck);
 
@@ -145,6 +159,28 @@ class GameState {
         void handleDeploymentCard(const s3d::Font& instructionFont);
         void handleEscapeCard(const s3d::Font& instructionFont);
         void handleBetrayalCard(const s3d::Font& instructionFont);
+
+        // ネットワークマルチプレイ用メソッド
+        void setNetwork(s3d::Multiplayer_Photon* network);
+        bool isMultiplayer() const;
+        bool isHost() const;
+        bool isMyTurn() const;
+        int getLocalPlayerIndex() const;
+        void setMultiplayerMode(bool isMultiplayer, bool isHost);
+        void setGameSeed(uint32_t seed);
+        uint32_t getGameSeed() const;
+
+        // ネットワークイベント送信メソッド
+        void sendCardPlacedEvent(int flagIndex, int slotIndex, int cardId, bool isSpecialCard, int specialCardType);
+        void sendDeckChoiceEvent(int deckType);
+        void sendGameInitEvent(uint32_t seed);
+        void sendPlayerReadyEvent();
+
+        // ネットワークイベント受信処理メソッド
+        void onCardPlacedReceived(int flagIndex, int slotIndex, int cardId, bool isSpecialCard, int specialCardType);
+        void onDeckChoiceReceived(int deckType);
+        void onGameInitReceived(uint32_t seed, int hostPlayerIndex);
+        void onPlayerReadyReceived();
 };
 
 #endif

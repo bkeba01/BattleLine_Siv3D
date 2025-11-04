@@ -1,0 +1,12 @@
+# BattleLine Configuration File (Example)
+# このファイルをコピーして config.toml にリネームし、実際の値を設定してください
+
+[photon]
+# Photon App ID（https://dashboard.photonengine.com/ から取得）
+app_id = "YOUR_PHOTON_APP_ID_HERE"
+
+# Photon App Version
+app_version = "1.0"
+
+# Secret Key（必要な場合のみ）
+# secret_key = "YOUR_SECRET_KEY_HERE"

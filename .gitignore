@@ -361,3 +361,11 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# BattleLine specific
+# Configuration files with secrets
+App/config.toml
+config.toml
+*.secret.toml
+**/PHOTON_APP_ID.SECRET
+src/PHOTON_APP_ID.SECRET

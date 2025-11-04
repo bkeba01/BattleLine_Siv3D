@@ -202,3 +202,139 @@ void GameState::startBetrayalCard()
 	m_betrayal_source_slot = -1;
 }
 
+// ========================================
+// ネットワークマルチプレイ用メソッドの実装
+// ========================================
+
+#include "../Multiplayer_Photon.hpp"
+
+void GameState::setNetwork(s3d::Multiplayer_Photon* network)
+{
+	m_network = network;
+}
+
+bool GameState::isMultiplayer() const
+{
+	return m_is_multiplayer;
+}
+
+bool GameState::isHost() const
+{
+	return m_is_host;
+}
+
+bool GameState::isMyTurn() const
+{
+	if (!m_is_multiplayer)
+		return true; // ローカルモードでは常にtrue
+
+	// マルチプレイモード：自分のプレイヤーのターンかチェック
+	int currentPlayerIndex = (m_currentPlayer == &m_player1) ? 0 : 1;
+	return (currentPlayerIndex == m_local_player_index);
+}
+
+int GameState::getLocalPlayerIndex() const
+{
+	return m_local_player_index;
+}
+
+void GameState::setMultiplayerMode(bool isMultiplayer, bool isHost)
+{
+	m_is_multiplayer = isMultiplayer;
+	m_is_host = isHost;
+	m_local_player_index = isHost ? 0 : 1; // ホストがPlayer1、クライアントがPlayer2
+}
+
+void GameState::setGameSeed(uint32_t seed)
+{
+	m_game_seed = seed;
+}
+
+uint32_t GameState::getGameSeed() const
+{
+	return m_game_seed;
+}
+
+// ========================================
+// ネットワークイベント送信メソッド
+// ========================================
+
+void GameState::sendCardPlacedEvent(int flagIndex, int slotIndex, int cardId, bool isSpecialCard, int specialCardType)
+{
+	if (!m_network || !m_is_multiplayer)
+		return;
+
+	s3d::Array<int32> data = { flagIndex, slotIndex, cardId, isSpecialCard ? 1 : 0, specialCardType };
+	m_network->sendEvent(EVENT_CARD_PLACED, data);
+
+	std::cout << "[Network] Sent CARD_PLACED: flag=" << flagIndex << ", slot=" << slotIndex << ", card=" << cardId << std::endl;
+}
+
+void GameState::sendDeckChoiceEvent(int deckType)
+{
+	if (!m_network || !m_is_multiplayer)
+		return;
+
+	m_network->sendEvent(EVENT_DECK_CHOICE, static_cast<int32>(deckType));
+
+	std::cout << "[Network] Sent DECK_CHOICE: type=" << deckType << std::endl;
+}
+
+void GameState::sendGameInitEvent(uint32_t seed)
+{
+	if (!m_network || !m_is_multiplayer)
+		return;
+
+	s3d::Array<int32> data = { static_cast<int32>(seed), m_local_player_index };
+	m_network->sendEvent(EVENT_GAME_INIT, data);
+
+	std::cout << "[Network] Sent GAME_INIT: seed=" << seed << std::endl;
+}
+
+void GameState::sendPlayerReadyEvent()
+{
+	if (!m_network || !m_is_multiplayer)
+		return;
+
+	m_network->sendEvent(EVENT_PLAYER_READY, static_cast<int32>(1));
+
+	std::cout << "[Network] Sent PLAYER_READY" << std::endl;
+}
+
+// ========================================
+// ネットワークイベント受信処理メソッド
+// ========================================
+
+void GameState::onCardPlacedReceived(int flagIndex, int slotIndex, int cardId, bool isSpecialCard, int specialCardType)
+{
+	std::cout << "[Network] Received CARD_PLACED: flag=" << flagIndex << ", slot=" << slotIndex << ", card=" << cardId << std::endl;
+
+	// TODO: 実際のカード配置処理を実装
+	// 相手プレイヤーのカード配置を反映する
+	// この部分は後で実装します
+}
+
+void GameState::onDeckChoiceReceived(int deckType)
+{
+	std::cout << "[Network] Received DECK_CHOICE: type=" << deckType << std::endl;
+
+	// TODO: 相手のデッキ選択を反映
+	// 相手がカードを引いたことを表示する処理など
+}
+
+void GameState::onGameInitReceived(uint32_t seed, int hostPlayerIndex)
+{
+	std::cout << "[Network] Received GAME_INIT: seed=" << seed << ", host=" << hostPlayerIndex << std::endl;
+
+	m_game_seed = seed;
+	// TODO: シードを使ってデッキを初期化
+	// この部分は次のフェーズで実装します
+}
+
+void GameState::onPlayerReadyReceived()
+{
+	std::cout << "[Network] Received PLAYER_READY" << std::endl;
+
+	m_waiting_for_opponent = false;
+}
+

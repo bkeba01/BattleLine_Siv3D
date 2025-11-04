@@ -26,6 +26,16 @@ void WeatherSlot::placeWeatherCard(GameState& gameState, const SpecialCard& card
 	if (slot != static_cast<int>(ste_SlotCard_NonSpace))
 	{
 		m_weather_cards[playerIndex][slot] = std::make_shared<SpecialCard>(card);
+
+		// WeatherCardの効果でフラグの勝敗が変わる可能性があるため、両プレイヤーの役とフラグの勝敗を再計算
+		Flag& currentFlag = gameState.getFlag(m_flagIndex);
+
+		// 両プレイヤーの役を再計算（カードが揃っている場合のみ）
+		currentFlag.checkRoleStatus(gameState, gameState.getPlayer1());
+		currentFlag.checkRoleStatus(gameState, gameState.getPlayer2());
+
+		// フラグの勝敗を再計算
+		currentFlag.checkFlagStatus(gameState);
 	}
 }
 
