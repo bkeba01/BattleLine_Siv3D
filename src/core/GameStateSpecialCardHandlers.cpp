@@ -101,14 +101,55 @@ void GameState::handleReconCard(const Font& instructionFont, const Font& smallFo
 			instructionFont(U"次へ").drawAt(nextButton.center(), Palette::White);
 			if (nextButton.leftClicked())
 			{
-				// 各山札をシャッフル
-				getDeck()->shuffle();
-				getSpecialDeck()->shuffle();
-				// 手札に追加（force=trueで上限を無視）
-				Vec2 handSpace = object_pos.at(U"card_hand_space");
-				if (getCurrentPlayer()->getId() == 1) {
-					handSpace = object_pos.at(U"card_opponent_hand_space");
+				// シングルプレイ時のみ山札をシャッフル
+				// マルチプレイ時は既に同期されているため、シャッフルしてはいけない
+				if (!isMultiplayer())
+				{
+					getDeck()->shuffle();
+					getSpecialDeck()->shuffle();
 				}
+
+				// マルチプレイ時: 選択した3枚のカードIDを送信
+				s3d::Array<int32> drawnCardIds;
+				if (isMultiplayer())
+				{
+					for (const auto& card : selectedCards)
+					{
+						drawnCardIds.push_back(card->getId());
+					}
+				}
+
+					// 手札に追加（force=trueで上限を無視）
+				Vec2 handSpace;
+				if (isMultiplayer())
+				{
+					// マルチプレイの場合、ローカルプレイヤー（自分）の手札位置を使用
+					int localPlayerIndex = getLocalPlayerIndex();
+					Player* localPlayer = (localPlayerIndex == 0) ? getPlayer1() : getPlayer2();
+					if (getCurrentPlayer() == localPlayer)
+					{
+						// 自分が使った場合、下側（card_hand_space）
+						handSpace = object_pos.at(U"card_hand_space");
+					}
+					else
+					{
+						// 相手が使った場合（このコードは実行されないはず）、上側
+						handSpace = object_pos.at(U"card_opponent_hand_space");
+					}
+				}
+				else
+				{
+					// シングルプレイの場合、従来の処理
+					handSpace = object_pos.at(U"card_hand_space");
+					if (getCurrentPlayer()->getId() == 1) {
+						handSpace = object_pos.at(U"card_opponent_hand_space");
+					}
+				}
+
+				std::cout << "[ReconCard] Adding 3 cards to current player's hand" << std::endl;
+				std::cout << "[ReconCard]   Current player: " << getCurrentPlayer()->getId() << std::endl;
+				std::cout << "[ReconCard]   Current player hand size before: " << getCurrentPlayer()->getHand().size() << std::endl;
+
 				for (auto& card : selectedCards)
 				{
 					// カードのサイズとスペースを設定
@@ -118,6 +159,24 @@ void GameState::handleReconCard(const Font& instructionFont, const Font& smallFo
 				}
 				// 手札が更新されたので、updateを呼んで m_cardRects を更新
 				getCurrentPlayer()->update();
+
+				std::cout << "[ReconCard]   Current player hand size after: " << getCurrentPlayer()->getHand().size() << std::endl;
+				if (isMultiplayer())
+				{
+					Player* otherPlayer = (getCurrentPlayer() == getPlayer1()) ? getPlayer2() : getPlayer1();
+					std::cout << "[ReconCard]   Other player: " << otherPlayer->getId() << std::endl;
+					std::cout << "[ReconCard]   Other player hand size: " << otherPlayer->getHand().size() << std::endl;
+				}
+
+				// マルチプレイ時: Phase 0->2の遷移イベントを送信
+				// データ: [phase=0, drawnCard1ID, drawnCard2ID, drawnCard3ID]
+				if (isMultiplayer())
+				{
+					s3d::Array<int32> eventData = { 0 };
+					eventData.append(drawnCardIds);
+					sendReconCardAction(0, eventData);
+				}
+
 				setReconPhase(2); // Phase 2へ
 			}
 		}
@@ -228,6 +287,8 @@ void GameState::handleReconCard(const Font& instructionFont, const Font& smallFo
 			for (size_t i = 0; i < cards.size(); ++i)
 			{
 				if (hoveredIndex && *hoveredIndex == i) continue;
+				// 範囲チェック
+				if (i >= cardRects.size()) continue;
 				// 表示領域内のみ描画
 				if (cardRects[i].x + cardRects[i].w > screenMargin && cardRects[i].x < Scene::Width() - screenMargin)
 				{
@@ -241,6 +302,8 @@ void GameState::handleReconCard(const Font& instructionFont, const Font& smallFo
 			for (size_t i = 0; i < cards.size(); ++i)
 			{
 				if (hoveredIndex && *hoveredIndex == i) continue;
+				// 範囲チェック
+				if (i >= cardRects.size()) continue;
 				// 表示領域内のみ描画
 				if (cardRects[i].x + cardRects[i].w > screenMargin && cardRects[i].x < Scene::Width() - screenMargin)
 				{
@@ -273,26 +336,34 @@ void GameState::handleReconCard(const Font& instructionFont, const Font& smallFo
 		if (hoveredIndex)
 		{
 			const int i = *hoveredIndex;
-			// 表示領域内のみ描画
-			if (cardRects[i].x + cardRects[i].w > screenMargin && cardRects[i].x < Scene::Width() - screenMargin)
+			// 範囲チェック
+			size_t currentCardCount = viewingSpecial ?
+				getSpecialDeck()->getCards().size() :
+				getDeck()->getCards().size();
+
+			if (i >= 0 && static_cast<size_t>(i) < currentCardCount)
 			{
-				enlargedCard = cardRects[i].scaledAt(cardRects[i].center(), 1.15).moveBy(0, -20);
-				hasEnlargedCard = true;
+				// 表示領域内のみ描画
+				if (cardRects[i].x + cardRects[i].w > screenMargin && cardRects[i].x < Scene::Width() - screenMargin)
+				{
+					enlargedCard = cardRects[i].scaledAt(cardRects[i].center(), 1.15).moveBy(0, -20);
+					hasEnlargedCard = true;
 
-				if (viewingSpecial)
-				{
-					getSpecialDeck()->getCards()[i].draw(enlargedCard);
-				}
-				else
-				{
-					getDeck()->getCards()[i].draw(enlargedCard);
-				}
+					if (viewingSpecial)
+					{
+						getSpecialDeck()->getCards()[i].draw(enlargedCard);
+					}
+					else
+					{
+						getDeck()->getCards()[i].draw(enlargedCard);
+					}
 
-				// ホバーされているカードが選択されている場合、拡大されたカードにフレームを描画
-				auto it = std::find(selectedDeckIndices.begin(), selectedDeckIndices.end(), static_cast<size_t>(i));
-				if (it != selectedDeckIndices.end())
-				{
-					enlargedCard.drawFrame(5, Palette::Yellow);
+					// ホバーされているカードが選択されている場合、拡大されたカードにフレームを描画
+					auto it = std::find(selectedDeckIndices.begin(), selectedDeckIndices.end(), static_cast<size_t>(i));
+					if (it != selectedDeckIndices.end())
+					{
+						enlargedCard.drawFrame(5, Palette::Yellow);
+					}
 				}
 			}
 		}
@@ -508,11 +579,15 @@ void GameState::handleReconCard(const Font& instructionFont, const Font& smallFo
 			{
 				// 選択したカードを山札に戻す
 				std::vector<std::shared_ptr<CardBase>> cardsToReturn;
+				s3d::Array<int32> returnedCardIds; // ネットワーク同期用
+
 				for (int index : selectedIndices)
 				{
 					if (index >= 0 && index < static_cast<int>(hand.size()))
 					{
 						cardsToReturn.push_back(hand[index]);
+						// カードIDを記録（同期用）
+						returnedCardIds.push_back(hand[index]->getId());
 					}
 				}
 
@@ -535,6 +610,17 @@ void GameState::handleReconCard(const Font& instructionFont, const Font& smallFo
 						getDeck()->returnCard(card);
 					}
 				}
+
+				// マルチプレイ時: ReconCardの結果を送信
+				if (isMultiplayer())
+				{
+					// Phase 2完了イベントを送信
+					// データ: [phase=2, returnedCard1ID, returnedCard2ID]
+					s3d::Array<int32> eventData = { 2 };
+					eventData.append(returnedCardIds);
+					sendReconCardAction(2, eventData);
+				}
+				//
 				// 選択インデックスをクリア
 				selectedIndices.clear();
 				// 選択したカード情報もクリア
@@ -637,21 +723,26 @@ void GameState::handleDeploymentCard(const Font& instructionFont)
 				// 削除エリア判定（ドラッグ中に表示していた矩形と同じ）
 				float deleteAreaY = (playerId == 0) ? Scene::Height() * 0.1 : Scene::Height() * 0.9;
 				RectF deleteArea(50, deleteAreaY - 50, Scene::Width() - 100, 100);
+				int targetFlagIndex = -1;  // -1 = 削除
+				int targetSlotIndex = -1;
+
 				if (deleteArea.contains(dropPos))
 				{
 					// カードを削除
 					sourceSlotObj.getCards()[playerId][sourceSlot] = nullptr;
 					cardProcessed = true;
+					targetFlagIndex = -1;  // 削除を示す
+					targetSlotIndex = -1;
 				}
 				else
 				{
 					// 別のスロットへの移動判定
-					for (int targetFlagIndex = 0; targetFlagIndex < 9; ++targetFlagIndex)
+					for (int tFlagIndex = 0; tFlagIndex < 9; ++tFlagIndex)
 					{
-						Flag& targetFlag = getFlags()[targetFlagIndex];
-						if (targetFlag.getFlagStatus() == ste_NonePlayer && targetFlagIndex != sourceFlag)
+						Flag& targetFlag = getFlags()[tFlagIndex];
+						if (targetFlag.getFlagStatus() == ste_NonePlayer && tFlagIndex != sourceFlag)
 						{
-							Slot& targetSlot = getSlot(targetFlagIndex);
+							Slot& targetSlot = getSlot(tFlagIndex);
 							int emptySlot = targetSlot.checkCardSpace(currentPlayer, *this);
 							if (emptySlot != static_cast<int>(ste_SlotCard_NonSpace))
 							{
@@ -662,6 +753,8 @@ void GameState::handleDeploymentCard(const Font& instructionFont)
 									targetSlot.getCards()[playerId][emptySlot] = selectedCard;
 									sourceSlotObj.getCards()[playerId][sourceSlot] = nullptr;
 									cardProcessed = true;
+									targetFlagIndex = tFlagIndex;
+									targetSlotIndex = emptySlot;
 									break;
 								}
 							}
@@ -674,6 +767,12 @@ void GameState::handleDeploymentCard(const Font& instructionFont)
 				{
 					setDeploymentMode(false);
 					setWaitingForDeckChoice(true);
+
+					// マルチプレイ時はネットワークイベントを送信
+					if (isMultiplayer())
+					{
+						sendDeploymentCardAction(sourceFlag, sourceSlot, targetFlagIndex, targetSlotIndex);
+					}
 				}
 				else
 				{
@@ -758,6 +857,12 @@ void GameState::handleEscapeCard(const Font& instructionFont)
 				// モードを終了
 				setEscapeMode(false);
 				setWaitingForDeckChoice(true);
+
+				// マルチプレイ時はネットワークイベントを送信
+				if (isMultiplayer())
+				{
+					sendEscapeCardAction(targetFlag, targetSlot);
+				}
 			}
 
 			// キャンセルボタンを表示
@@ -848,6 +953,8 @@ void GameState::handleBetrayalCard(const Font& instructionFont)
 			{
 				Vec2 dropPos = Cursor::Pos();
 				bool cardProcessed = false;
+				int destFlagIndex = -1;
+				int destSlotIndex = -1;
 
 				// 自分の空いているスロットへの移動判定
 				for (int targetFlagIndex = 0; targetFlagIndex < 9; ++targetFlagIndex)
@@ -866,6 +973,8 @@ void GameState::handleBetrayalCard(const Font& instructionFont)
 								targetSlot.getCards()[currentPlayerId][emptySlot] = selectedCard;
 								sourceSlotObj.getCards()[opponentId][betrayalSourceSlot] = nullptr;
 								cardProcessed = true;
+								destFlagIndex = targetFlagIndex;
+								destSlotIndex = emptySlot;
 								break;
 							}
 						}
@@ -877,6 +986,12 @@ void GameState::handleBetrayalCard(const Font& instructionFont)
 				{
 					setBetrayalMode(false);
 					setWaitingForDeckChoice(true);
+
+					// マルチプレイ時はネットワークイベントを送信
+					if (isMultiplayer())
+					{
+						sendBetrayalCardAction(betrayalSourceFlag, betrayalSourceSlot, destFlagIndex, destSlotIndex);
+					}
 				}
 				else
 				{

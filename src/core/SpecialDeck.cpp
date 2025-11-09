@@ -4,7 +4,7 @@
 #include "core/Common.h"
 
 SpecialDeck::SpecialDeck(const Font& font, const Texture& texture, const Texture& backtexture, const Font& smallfont)
-    : m_font(font), m_texture(texture), m_back_texture(backtexture)
+    : m_font(font), m_small_font(smallfont), m_texture(texture), m_back_texture(backtexture)
 {
     m_cards.reserve(ste_SpecialDeckSize);
 
@@ -27,6 +27,12 @@ void SpecialDeck::shuffle() {
     std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(m_cards.begin(), m_cards.end(), g);
+}
+
+void SpecialDeck::shuffleWithSeed(uint32_t seed) {
+    std::mt19937 g(seed);
+    std::shuffle(m_cards.begin(), m_cards.end(), g);
+    std::cout << "[SpecialDeck] Shuffled with seed: " << seed << std::endl;
 }
 
 std::optional<SpecialCard> SpecialDeck::drawCard()
@@ -89,4 +95,57 @@ void SpecialDeck::drawDeck(bool canUseSpecialCard) const
     m_rect.drawFrame(4, 0, frameColor);
 
     m_back_texture.resized(45).drawAt(m_rect.center().movedBy(0, 0));
+}
+
+// デッキの順序をシリアル化（カードIDの配列として返す）
+s3d::Array<int32> SpecialDeck::serializeDeck() const
+{
+	s3d::Array<int32> cardIds;
+	cardIds.reserve(m_cards.size());
+
+	for (const auto& card : m_cards)
+	{
+		// SpecialCardはタイプをそのままIDとして使用
+		int32 cardId = static_cast<int32>(card.getType());
+		cardIds.push_back(cardId);
+	}
+
+	std::cout << "[SpecialDeck] Serialized " << cardIds.size() << " cards" << std::endl;
+	return cardIds;
+}
+
+// デッキの順序を復元（カードIDの配列から再構築）
+void SpecialDeck::deserializeDeck(const s3d::Array<int32>& cardIds)
+{
+	std::cout << "[SpecialDeck] Deserializing " << cardIds.size() << " cards" << std::endl;
+
+	// 既存のデッキをクリア
+	m_cards.clear();
+	m_cards.reserve(cardIds.size());
+
+	// カードIDから順番にカードを再構築
+	// 注: SpecialCardのコンストラクタは特殊なため、元のデッキと同じ順序で再構築する必要がある
+	// ここでは、cardIdsの順序に従って、元のSpecialCardを再配置する
+	// そのため、一時的な完全なデッキを作成してから並べ替える
+
+	// まず、全種類のSpecialCardを作成（元のコンストラクタと同じ）
+	SpecialDeck tempDeck(m_font, m_texture, m_back_texture, m_small_font);
+
+	// cardIdsの順序に従って、tempDeckからカードをコピー
+	for (int32 cardId : cardIds)
+	{
+		SpecialCardType targetType = static_cast<SpecialCardType>(cardId);
+
+		// tempDeckから該当するカードを探してコピー
+		for (const auto& card : tempDeck.m_cards)
+		{
+			if (card.getType() == targetType)
+			{
+				m_cards.push_back(card);
+				break;
+			}
+		}
+	}
+
+	std::cout << "[SpecialDeck] Deserialized " << m_cards.size() << " cards successfully" << std::endl;
 }

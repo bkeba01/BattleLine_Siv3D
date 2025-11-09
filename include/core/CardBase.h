@@ -34,6 +34,9 @@ public:
     virtual void setBackTexture(Texture texture);
     virtual Texture getBackTexture() const;
 
+    // カードID取得（ネットワーク同期用）
+    virtual int getId() const = 0;
+
     // 純粋仮想関数（派生クラスで実装必須）
     virtual void draw() const = 0;
     virtual void draw(const RectF& rect) const = 0;  // 位置指定版

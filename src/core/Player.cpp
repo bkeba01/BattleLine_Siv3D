@@ -33,8 +33,11 @@ int Player::getId() const { return m_id; }
 void Player::drawCard(Deck* deck)
 {
     if (m_hand.size() > static_cast<size_t>(ste_HandCardMaxNum)) { // ste_HandCardMaxNum is 6, so this prevents drawing if hand is 7 or more.
+        std::cout << "[Player::drawCard] Player " << m_id << " hand is full (" << m_hand.size() << "), cannot draw" << std::endl;
         return;
     }
+
+    std::cout << "[Player::drawCard] Player " << m_id << " attempting to draw from deck (remaining: " << deck->getCards().size() << ")" << std::endl;
 
     if (auto cardOpt = deck->drawCard())
     {
@@ -42,8 +45,12 @@ void Player::drawCard(Deck* deck)
         card.setCardHandSize(m_card_hand_size);
         card.setCardHandSpace(m_card_hand_space);
         m_hand.push_back(std::make_shared<Card>(card));
+        std::cout << "[Player::drawCard] Player " << m_id << " drew card successfully (hand size: " << m_hand.size() << ", deck remaining: " << deck->getCards().size() << ")" << std::endl;
     }
-    // If cardOpt is nullopt (deck is empty), do nothing.
+    else
+    {
+        std::cout << "[Player::drawCard] Player " << m_id << " cannot draw - deck is empty!" << std::endl;
+    }
 }
 
 const std::vector<std::shared_ptr<CardBase>>& Player::getHand() const { return m_hand; }
@@ -149,6 +156,12 @@ void Player::update()
 	m_cardRects.clear();
 	for (int i = static_cast<int>(ste_HandCardMinNum); i < m_hand.size(); ++i)
 	{
+		// nullチェック
+		if (!m_hand[i])
+		{
+			std::cout << "[Player::update] WARNING: Player " << m_id << " has null card at index " << i << std::endl;
+			continue;
+		}
 		const double centerX = m_hand[i]->getCardHandSpace().x + m_hand[i]->getCardHandSize().x / 2 * i + (m_hand[i]->getCardHandSize().x / 2.0);
 		m_cardRects << RectF{ Arg::center(centerX, m_hand[i]->getCardHandSpace().y), m_hand[i]->getCardHandSize().x, m_hand[i]->getCardHandSize().y };
 	}
@@ -192,6 +205,12 @@ void Player::update()
 
 void Player::handleInput(GameState& gameState)
 {
+	// マルチプレイ時、自分のターンでなければ入力を無効化
+	if (gameState.isMultiplayer() && !gameState.isMyTurn())
+	{
+		return;
+	}
+
 	m_dragManager.updateDrag(m_cardRects);
 
 	if (m_dragManager.wasJustDropped())
@@ -215,11 +234,21 @@ void Player::handleInput(GameState& gameState)
 						const RectF slotRect = currentSlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
 						if (slotRect.contains(droppedCardCenter))
 						{
+							int flagIndex = flag.getSlotIndex();
+							int cardId = cardPtr->getId();
+
 							currentSlot.placeCard(gameState, *cardPtr, gameState.getCurrentPlayer());
 							removeCardFromHand(droppedHandIndex);
 							gameState.setWaitingForDeckChoice(true);
 							m_dragManager.clearHover();
 							droppedInSlot = true;
+
+							// ネットワークイベント送信（マルチプレイ時のみ）
+							if (gameState.isMultiplayer())
+							{
+								gameState.sendCardPlacedEvent(flagIndex, emptySlotIndex, cardId, false, 0);
+							}
+
 							break;
 						}
 					}
@@ -236,6 +265,10 @@ void Player::handleInput(GameState& gameState)
 				}
 
 				SpecialCardCategory category = specialCardPtr->getCategory();
+				int flagIndex = -1;
+				int slotIndex = -1;
+				int cardId = specialCardPtr->getId();
+				int specialCardType = static_cast<int>(specialCardPtr->getType());
 
 				// 部隊カード - スロットに配置（通常カードと同じ）
 				if (category == ste_TroopCard)
@@ -249,6 +282,9 @@ void Player::handleInput(GameState& gameState)
 							const RectF slotRect = currentSlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
 							if (slotRect.contains(droppedCardCenter))
 							{
+								flagIndex = flag.getSlotIndex();
+								slotIndex = emptySlotIndex;
+
 								currentSlot.placeSpecialCard(gameState, *specialCardPtr, gameState.getCurrentPlayer());
 								removeCardFromHand(droppedHandIndex);
 								gameState.setWaitingForDeckChoice(true);
@@ -271,6 +307,9 @@ void Player::handleInput(GameState& gameState)
 							const RectF slotRect = currentWeatherSlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
 							if (slotRect.contains(droppedCardCenter))
 							{
+								flagIndex = flag.getSlotIndex();
+								slotIndex = emptySlotIndex;
+
 								currentWeatherSlot.placeWeatherCard(gameState, *specialCardPtr, gameState.getCurrentPlayer());
 								removeCardFromHand(droppedHandIndex);
 								gameState.setWaitingForDeckChoice(true);
@@ -291,6 +330,9 @@ void Player::handleInput(GameState& gameState)
 						const RectF slotRect = conspiracySlot.getCardSlotRect(gameState, gameState.getCurrentPlayer()->getId(), emptySlotIndex, gameState.getCurrentPlayer()->getId());
 						if (slotRect.contains(droppedCardCenter))
 						{
+							flagIndex = 0; // ConspiracySlotにはflagIndexがないので0を使用
+							slotIndex = emptySlotIndex;
+
 							conspiracySlot.placeConspiracyCard(gameState, *specialCardPtr, gameState.getCurrentPlayer());
 							removeCardFromHand(droppedHandIndex);
 							gameState.setWaitingForDeckChoice(true);
@@ -305,6 +347,16 @@ void Player::handleInput(GameState& gameState)
 				{
 					gameState.getCurrentPlayer()->setCanUseSpecialCard(false);
 					gameState.getOpponentPlayer()->setCanUseSpecialCard(true);
+
+					std::cout << "[SpecialCard] Flag updated after placing special card" << std::endl;
+					std::cout << "[SpecialCard]   Current player (placed card): canUse=" << gameState.getCurrentPlayer()->getCanUseSpecialCard() << std::endl;
+					std::cout << "[SpecialCard]   Opponent player: canUse=" << gameState.getOpponentPlayer()->getCanUseSpecialCard() << std::endl;
+
+					// ネットワークイベント送信（マルチプレイ時のみ）
+					if (gameState.isMultiplayer())
+					{
+						gameState.sendCardPlacedEvent(flagIndex, slotIndex, cardId, true, specialCardType);
+					}
 				}
 			}
 		}
@@ -317,17 +369,60 @@ void Player::handleDeckChoice(GameState& gameState)
 		return;
 	}
 
+	// ReconMode中はこの処理をスキップ（ReconCardが独自に山札選択を処理する）
+	if (gameState.isReconMode())
+	{
+		std::cout << "[Player::handleDeckChoice] ReconMode active, skipping normal deck choice" << std::endl;
+		return;
+	}
+
+	// マルチプレイ時、自分のターンでなければ入力を無効化
+	if (gameState.isMultiplayer() && !gameState.isMyTurn())
+	{
+		return;
+	}
+
+	std::cout << "[Player::handleDeckChoice] Player " << m_id << " handling deck choice" << std::endl;
+
 	// 通常デッキのクリック判定
 	if (gameState.getDeck()->getRect().leftClicked())
 	{
-		gameState.drawFromNormalDeck();
-		gameState.changePlayer();
+		std::cout << "[Player::handleDeckChoice] Player " << m_id << " clicked normal deck!" << std::endl;
+		if (gameState.isMultiplayer())
+		{
+			// マルチプレイモード：ローカル処理してからイベント送信
+			std::cout << "[Player] Deck clicked, drawing card and sending event..." << std::endl;
+			gameState.getCurrentPlayer()->drawCard(gameState.getDeck());
+			gameState.setWaitingForDeckChoice(false);
+			gameState.changePlayer();
+			gameState.sendDeckChoiceEvent(0); // 0: 通常デッキ
+		}
+		else
+		{
+			// ローカルモード：通常の処理
+			gameState.drawFromNormalDeck();
+			gameState.changePlayer();
+			gameState.changePlayer();
+		}
 	}
 	// 特殊デッキのクリック判定
 	else if (gameState.getSpecialDeck()->getRect().leftClicked())
 	{
-		gameState.drawFromSpecialDeck();
-		gameState.changePlayer();
+		if (gameState.isMultiplayer())
+		{
+			// マルチプレイモード：ローカル処理してからイベント送信
+			std::cout << "[Player] Special deck clicked, drawing card and sending event..." << std::endl;
+			gameState.getCurrentPlayer()->drawSpecialCard(gameState.getSpecialDeck());
+			gameState.setWaitingForDeckChoice(false);
+			gameState.changePlayer();
+			gameState.sendDeckChoiceEvent(1); // 1: 特殊デッキ
+		}
+		else
+		{
+			// ローカルモード：通常の処理
+			gameState.drawFromSpecialDeck();
+			gameState.changePlayer();
+		}
 	}
 }
 
@@ -357,6 +452,12 @@ void Player::drawPlayerCards()
 
 	for (int i = static_cast<int>(ste_HandCardMinNum); i < m_hand.size(); ++i)
 	{
+		// nullチェックと範囲チェック
+		if (!m_hand[i] || i >= static_cast<int>(m_cardRects.size()))
+		{
+			continue;
+		}
+
 		bool isHeld = heldCardIndex && (*heldCardIndex == i);
 		bool isHovered = hoveredCardIndex && (*hoveredCardIndex == i);
 
@@ -387,30 +488,41 @@ void Player::drawHoveredAndHeldCards(GameState& gameState)
 	if (currentHoveredRectsIndex && !currentHeldRectsIndex)
 	{
 		const int i = *currentHoveredRectsIndex;
-		const RectF enlargedCard = m_cardRects[i].scaledAt(m_cardRects[i].center(), 1.15).moveBy(0, -20);
-		m_hand[i]->setRect(enlargedCard);
+		// 範囲チェック
+		if (i >= 0 && i < static_cast<int>(m_hand.size()) && i < static_cast<int>(m_cardRects.size()) && m_hand[i])
+		{
+			const RectF enlargedCard = m_cardRects[i].scaledAt(m_cardRects[i].center(), 1.15).moveBy(0, -20);
+			m_hand[i]->setRect(enlargedCard);
 
-		// スペシャルカードで使用不可の場合はグレーアウト
-		auto specialCardPtr = std::dynamic_pointer_cast<SpecialCard>(m_hand[i]);
-		if (specialCardPtr && !m_canUseSpecialCard)
-		{
-			ScopedColorMul2D colorMul(ColorF(1.0, 0.5));
-			m_hand[i]->draw();
-		}
-		else
-		{
-			m_hand[i]->draw();
+			// スペシャルカードで使用不可の場合はグレーアウト
+			auto specialCardPtr = std::dynamic_pointer_cast<SpecialCard>(m_hand[i]);
+			if (specialCardPtr && !m_canUseSpecialCard)
+			{
+				ScopedColorMul2D colorMul(ColorF(1.0, 0.5));
+				m_hand[i]->draw();
+			}
+			else
+			{
+				m_hand[i]->draw();
+			}
 		}
 	}
 
 	if (currentHeldRectsIndex)
 	{
-		Vec2 cardSize = m_hand[*currentHeldRectsIndex]->getCardHandSize();
+		const int heldIdx = *currentHeldRectsIndex;
+		// 範囲チェック
+		if (heldIdx < 0 || heldIdx >= static_cast<int>(m_hand.size()) || !m_hand[heldIdx])
+		{
+			return;
+		}
+
+		Vec2 cardSize = m_hand[heldIdx]->getCardHandSize();
 		const RectF originalDraggingRect = m_dragManager.getDraggingRect(cardSize.x, cardSize.y);
 		const Vec2 draggedCardCenter = originalDraggingRect.center();
 
 		// 通常のカードの場合
-		if (auto cardPtr = std::dynamic_pointer_cast<Card>(m_hand[*currentHeldRectsIndex]))
+		if (auto cardPtr = std::dynamic_pointer_cast<Card>(m_hand[heldIdx]))
 		{
 			for (auto& flag : gameState.getFlags())
 			{
@@ -428,7 +540,7 @@ void Player::drawHoveredAndHeldCards(GameState& gameState)
 			}
 		}
 		// 特殊カードの場合
-		else if (auto specialCardPtr = std::dynamic_pointer_cast<SpecialCard>(m_hand[*currentHeldRectsIndex]))
+		else if (auto specialCardPtr = std::dynamic_pointer_cast<SpecialCard>(m_hand[heldIdx]))
 		{
 			SpecialCardCategory category = specialCardPtr->getCategory();
 
@@ -484,18 +596,18 @@ void Player::drawHoveredAndHeldCards(GameState& gameState)
 			}
 		}
 
-		m_hand[*currentHeldRectsIndex]->setRect(m_dragManager.getDraggingRect(cardSize.x, cardSize.y));
+		m_hand[heldIdx]->setRect(m_dragManager.getDraggingRect(cardSize.x, cardSize.y));
 
 		// スペシャルカードで使用不可の場合はグレーアウト
-		auto specialCardPtr = std::dynamic_pointer_cast<SpecialCard>(m_hand[*currentHeldRectsIndex]);
+		auto specialCardPtr = std::dynamic_pointer_cast<SpecialCard>(m_hand[heldIdx]);
 		if (specialCardPtr && !m_canUseSpecialCard)
 		{
 			ScopedColorMul2D colorMul(ColorF(1.0, 0.5));
-			m_hand[*currentHeldRectsIndex]->draw();
+			m_hand[heldIdx]->draw();
 		}
 		else
 		{
-			m_hand[*currentHeldRectsIndex]->draw();
+			m_hand[heldIdx]->draw();
 		}
 	}
 }

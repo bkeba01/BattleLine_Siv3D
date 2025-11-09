@@ -175,12 +175,24 @@ class GameState {
         void sendDeckChoiceEvent(int deckType);
         void sendGameInitEvent(uint32_t seed);
         void sendPlayerReadyEvent();
+        void sendDeckSyncEvent(const s3d::Array<int32>& deckOrder);
+        void sendSpecialDeckSyncEvent(const s3d::Array<int32>& deckOrder);
+        void sendDeploymentCardAction(int sourceFlagIndex, int sourceSlotIndex, int targetFlagIndex, int targetSlotIndex);
+        void sendEscapeCardAction(int targetFlagIndex, int targetSlotIndex);
+        void sendBetrayalCardAction(int sourceFlagIndex, int sourceSlotIndex, int destFlagIndex, int destSlotIndex);
+        void sendReconCardAction(int phase, const s3d::Array<int32>& data);
 
         // ネットワークイベント受信処理メソッド
         void onCardPlacedReceived(int flagIndex, int slotIndex, int cardId, bool isSpecialCard, int specialCardType);
         void onDeckChoiceReceived(int deckType);
         void onGameInitReceived(uint32_t seed, int hostPlayerIndex);
         void onPlayerReadyReceived();
+        void onDeckSyncReceived(const s3d::Array<int32>& deckOrder);
+        void onSpecialDeckSyncReceived(const s3d::Array<int32>& deckOrder);
+        void onDeploymentCardActionReceived(const s3d::Array<int32>& data);
+        void onEscapeCardActionReceived(const s3d::Array<int32>& data);
+        void onBetrayalCardActionReceived(const s3d::Array<int32>& data);
+        void onReconCardActionReceived(const s3d::Array<int32>& data);
 };
 
 #endif

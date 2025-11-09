@@ -33,5 +33,10 @@ class SpecialCard : public CardBase
 		int getColor() const { return m_color; };
 		void setValue(int value) { m_value = value; };
 		void setColor(int color) { m_color = color; };
+
+		// ネットワーク同期用のカードID (特殊カードはタイプをそのまま返す)
+		int getId() const override {
+			return static_cast<int>(m_type);
+		}
 };
 #endif

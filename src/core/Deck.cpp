@@ -22,6 +22,12 @@ void Deck::shuffle() {
     std::shuffle(m_cards.begin(), m_cards.end(), g);
 }
 
+void Deck::shuffleWithSeed(uint32_t seed) {
+    std::mt19937 g(seed);
+    std::shuffle(m_cards.begin(), m_cards.end(), g);
+    std::cout << "[Deck] Shuffled with seed: " << seed << std::endl;
+}
+
 std::optional<Card> Deck::drawCard()
 {
     if (m_cards.empty())
@@ -77,4 +83,41 @@ void Deck::drawDeck() const
 	m_rect.draw(Arg::top = ColorF{ 0.5, 0.7, 0.9 }, Arg::bottom = ColorF{ 0.5, 0.9, 0.7 });
 	m_rect.drawFrame(2, 0, Palette::Black);
 	m_back_texture.resized(45).drawAt(m_rect.center().movedBy(0, 0));
+}
+
+// デッキの順序をシリアル化（カードIDの配列として返す）
+s3d::Array<int32> Deck::serializeDeck() const
+{
+	s3d::Array<int32> cardIds;
+	cardIds.reserve(m_cards.size());
+
+	for (const auto& card : m_cards)
+	{
+		// カードID = color * 100 + value
+		int32 cardId = card.getColor() * 100 + card.getValue();
+		cardIds.push_back(cardId);
+	}
+
+	std::cout << "[Deck] Serialized " << cardIds.size() << " cards" << std::endl;
+	return cardIds;
+}
+
+// デッキの順序を復元（カードIDの配列から再構築）
+void Deck::deserializeDeck(const s3d::Array<int32>& cardIds)
+{
+	std::cout << "[Deck] Deserializing " << cardIds.size() << " cards" << std::endl;
+
+	// 既存のデッキをクリア
+	m_cards.clear();
+	m_cards.reserve(cardIds.size());
+
+	// カードIDから順番にカードを再構築
+	for (int32 cardId : cardIds)
+	{
+		int color = cardId / 100;
+		int value = cardId % 100;
+		m_cards.emplace_back(color, value, m_font, m_texture, m_back_texture);
+	}
+
+	std::cout << "[Deck] Deserialized " << m_cards.size() << " cards successfully" << std::endl;
 }

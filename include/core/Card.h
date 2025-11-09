@@ -21,6 +21,11 @@ class Card : public CardBase {
             return m_color == other.m_color && m_value == other.m_value;
         }
 
+        // ネットワーク同期用のカードID (color * 100 + value)
+        int getId() const override {
+            return m_color * 100 + m_value;
+        }
+
 		void draw() const override;
 		void draw(const RectF& rect) const override;
 		void drawBack() const override;

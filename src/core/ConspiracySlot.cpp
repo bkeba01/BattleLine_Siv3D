@@ -27,22 +27,37 @@ void ConspiracySlot::placeConspiracyCard(GameState& gameState, const SpecialCard
 		m_conspiracy_cards[playerIndex][slot] = std::make_shared<SpecialCard>(card);
 
 		// カードの種類に応じて効果を発動
-		switch (card.getType())
+		// マルチプレイ時、自分のターンでない場合は効果を発動しない（相手の操作を受信しただけ）
+		bool shouldActivateEffect = true;
+		if (gameState.isMultiplayer())
 		{
-		case ste_ReconCard:
-			gameState.startReconCard();
-			break;
-		case ste_DeploymentCard:
-			gameState.startDeploymentCard();
-			break;
-		case ste_EscapeCard:
-			gameState.startEscapeCard();
-			break;
-		case ste_BetrayalCard:
-			gameState.startBetrayalCard();
-			break;
-		default:
-			break;
+			// 自分のターンの場合のみ効果を発動
+			shouldActivateEffect = gameState.isMyTurn();
+		}
+
+		if (shouldActivateEffect)
+		{
+			switch (card.getType())
+			{
+			case ste_ReconCard:
+				gameState.startReconCard();
+				break;
+			case ste_DeploymentCard:
+				gameState.startDeploymentCard();
+				break;
+			case ste_EscapeCard:
+				gameState.startEscapeCard();
+				break;
+			case ste_BetrayalCard:
+				gameState.startBetrayalCard();
+				break;
+			default:
+				break;
+			}
+		}
+		else
+		{
+			std::cout << "[ConspiracySlot] Skipped effect activation (opponent's turn)" << std::endl;
 		}
 	}
 }

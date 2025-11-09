@@ -33,12 +33,16 @@ enum class MultiplayerState {
 	Ready
 };
 
-std::unique_ptr<GameState> initializeGame(HashTable<String,Vec2> object_pos)
+std::unique_ptr<GameState> initializeGame(HashTable<String,Vec2> object_pos, bool isMultiplayer = false)
 {
 	RectF deck_card{ Arg::center((object_pos[U"card_slot_size"].x / 2) + 10,Scene::Height() / 2),object_pos[U"card_slot_size"].x,object_pos[U"card_slot_size"].y };
 	Deck deck(Font{ 30, Typeface::Bold }, Texture{ U"🃏"_emoji },Texture{U"⚔"_emoji});
 	deck.setRect(deck_card);
-	deck.shuffle();
+
+	// マルチプレイの場合はシャッフルしない（後でシード同期する）
+	if (!isMultiplayer) {
+		deck.shuffle();
+	}
 
 	// 特殊デッキの初期化（右端）
 	RectF special_deck_card{
@@ -51,7 +55,11 @@ std::unique_ptr<GameState> initializeGame(HashTable<String,Vec2> object_pos)
 	};
 	SpecialDeck specialDeck(Font{ 30, Typeface::Bold }, Texture{ U"✨"_emoji }, Texture{U"🎴"_emoji},Font{ 12, Typeface::Bold });
 	specialDeck.setRect(special_deck_card);
-	specialDeck.shuffle();
+
+	// マルチプレイの場合はシャッフルしない（後でシード同期する）
+	if (!isMultiplayer) {
+		specialDeck.shuffle();
+	}
 
 	Player player1(0, deck, object_pos[U"card_hand_size"], object_pos[U"card_hand_space"]);
 	Player player2(1, deck, object_pos[U"card_hand_size"], object_pos[U"card_opponent_hand_space"]);
@@ -201,9 +209,42 @@ public:
 		Multiplayer_Photon::connectReturn(errorCode, errorString, region, cluster);
 	}
 
-	// イベント受信時のコールバック
+	// int32版のオーバーロード（単一値用）
+	void customEventAction(const s3d::LocalPlayerID playerID, const uint8 eventCode, int32 data) override {
+		if (!m_gameState) {
+			Multiplayer_Photon::customEventAction(playerID, eventCode, data);
+			return;
+		}
+
+		// 自分が送信したイベントは既にローカルで処理済みなのでスキップ
+		if (playerID == getLocalPlayerID()) {
+			Multiplayer_Photon::customEventAction(playerID, eventCode, data);
+			return;
+		}
+
+		switch (eventCode) {
+		case EVENT_DECK_CHOICE:
+			m_gameState->onDeckChoiceReceived(data);
+			break;
+		default:
+			break;
+		}
+
+		Multiplayer_Photon::customEventAction(playerID, eventCode, data);
+	}
+
+	// イベント受信時のコールバック（配列版）
 	void customEventAction(const s3d::LocalPlayerID playerID, const uint8 eventCode, const s3d::Array<int32>& data) override {
-		if (!m_gameState) return;
+		if (!m_gameState) {
+			Multiplayer_Photon::customEventAction(playerID, eventCode, data);
+			return;
+		}
+
+		// 自分が送信したイベントは既にローカルで処理済みなのでスキップ
+		if (playerID == getLocalPlayerID()) {
+			Multiplayer_Photon::customEventAction(playerID, eventCode, data);
+			return;
+		}
 
 		switch (eventCode) {
 		case EVENT_GAME_INIT:
@@ -225,15 +266,32 @@ public:
 			}
 			break;
 
-		case EVENT_DECK_CHOICE:
-			if (data.size() >= 1) {
-				int deckType = data[0];
-				m_gameState->onDeckChoiceReceived(deckType);
-			}
-			break;
-
 		case EVENT_PLAYER_READY:
 			m_gameState->onPlayerReadyReceived();
+			break;
+
+		case EVENT_DECK_SYNC:
+			m_gameState->onDeckSyncReceived(data);
+			break;
+
+		case EVENT_SPECIAL_DECK_SYNC:
+			m_gameState->onSpecialDeckSyncReceived(data);
+			break;
+
+		case EVENT_DEPLOYMENT_CARD_ACTION:
+			m_gameState->onDeploymentCardActionReceived(data);
+			break;
+
+		case EVENT_ESCAPE_CARD_ACTION:
+			m_gameState->onEscapeCardActionReceived(data);
+			break;
+
+		case EVENT_BETRAYAL_CARD_ACTION:
+			m_gameState->onBetrayalCardActionReceived(data);
+			break;
+
+		case EVENT_RECON_CARD_ACTION:
+			m_gameState->onReconCardActionReceived(data);
 			break;
 
 		default:
@@ -515,7 +573,7 @@ MultiplayerState drawMultiplayerLobby(Font& titleFont, Font& buttonFont, Font& i
 }
 
 // ゲームプレイ部分（既存のMain関数の中身）
-void runGame(HashTable<String, Vec2>& object_pos, std::unique_ptr<GameState>& gameState) {
+void runGame(HashTable<String, Vec2>& object_pos, std::unique_ptr<GameState>& gameState, GamePhotonHandler* photon = nullptr) {
 	// Initial update to set card positions
 	gameState->getPlayer1()->update();
 	gameState->getPlayer2()->update();
@@ -524,6 +582,11 @@ void runGame(HashTable<String, Vec2>& object_pos, std::unique_ptr<GameState>& ga
 	Font debugFont{ 14, Typeface::Bold };
 	while (System::Update())
 	{
+		// マルチプレイ時はPhotonの更新が必須
+		if (photon) {
+			photon->update();
+		}
+
 		gameState->autoSetFinished();
 		if (gameState->getFinished())
 		{
@@ -535,28 +598,63 @@ void runGame(HashTable<String, Vec2>& object_pos, std::unique_ptr<GameState>& ga
 
 		// Draw special card usage indicator coin
 		// 片方のプレイヤーだけが使用可能な場合のみ描画（最初は両方trueなので描画しない）
-		bool currentPlayerCanUse = gameState->getCurrentPlayer()->getCanUseSpecialCard();
-		bool opponentCanUse = gameState->getOpponentPlayer()->getCanUseSpecialCard();
+		Player* player1 = gameState->getPlayer1();
+		Player* player2 = gameState->getPlayer2();
+		bool player1CanUse = player1->getCanUseSpecialCard();
+		bool player2CanUse = player2->getCanUseSpecialCard();
 
-		if (currentPlayerCanUse != opponentCanUse)
+		if (player1CanUse != player2CanUse)
 		{
 			RectF deckRect = gameState->getDeck()->getRect();
 			double coinDiameter = deckRect.w * 2.0 / 3.0;
 			double coinX = deckRect.x + deckRect.w / 2.0;
 			double coinY;
 
-			if (currentPlayerCanUse)
+			// マルチプレイの場合は、ローカルプレイヤーの視点で判断
+			bool showCoinBelow; // 下側（自分側）にコインを表示するか
+
+			if (gameState->isMultiplayer())
 			{
-				// Current player can use special card - show coin below deck
+				int localIndex = gameState->getLocalPlayerIndex();
+				Player* localPlayer = (localIndex == 0) ? player1 : player2;
+				showCoinBelow = localPlayer->getCanUseSpecialCard();
+			}
+			else
+			{
+				// シングルプレイの場合は、現在のターンプレイヤーで判断
+				showCoinBelow = gameState->getCurrentPlayer()->getCanUseSpecialCard();
+			}
+
+			if (showCoinBelow)
+			{
+				// Local player can use special card - show coin below deck (自分側)
 				coinY = deckRect.y + deckRect.h + 60;
 			}
 			else
 			{
-				// Opponent can use special card - show coin above deck
+				// Remote player can use special card - show coin above deck (相手側)
 				coinY = deckRect.y - 60;
 			}
 
 			Circle(coinX, coinY, coinDiameter / 2.0).draw(Palette::Gold);
+		}
+
+		// Determine local/remote players for drawing
+		Player* localPlayer;
+		Player* remotePlayer;
+		int localPlayerId;
+
+		if (gameState->isMultiplayer()) {
+			// マルチプレイヤーモード：ローカルプレイヤーを常に下側に表示
+			int localIndex = gameState->getLocalPlayerIndex();
+			localPlayer = (localIndex == 0) ? gameState->getPlayer1() : gameState->getPlayer2();
+			remotePlayer = (localIndex == 0) ? gameState->getPlayer2() : gameState->getPlayer1();
+			localPlayerId = localPlayer->getId();
+		} else {
+			// ローカルモード：現在のターンプレイヤーを下側に表示（従来の動作）
+			localPlayer = gameState->getCurrentPlayer();
+			remotePlayer = (localPlayer == gameState->getPlayer1()) ? gameState->getPlayer2() : gameState->getPlayer1();
+			localPlayerId = localPlayer->getId();
 		}
 
 		// Get the current dragged card type to conditionally show empty slots
@@ -581,11 +679,11 @@ void runGame(HashTable<String, Vec2>& object_pos, std::unique_ptr<GameState>& ga
 			bool showNormalSlots = (draggedType == DraggedCardType::NormalCard || draggedType == DraggedCardType::TroopCard)
 				|| (deploymentDragging && isUndecidedFlag && flag != gameState->getDeploymentSourceFlag())
 				|| (betrayalDragging && isUndecidedFlag);
-			gameState->getSlot(flag).slotdraw(*gameState, gameState->getCurrentPlayer()->getId(), showNormalSlots);
+			gameState->getSlot(flag).slotdraw(*gameState, localPlayerId, showNormalSlots);
 
 			// Always draw WeatherSlot (placed cards), show empty slots only when dragging WeatherCard
 			bool showWeatherSlots = (draggedType == DraggedCardType::WeatherCard);
-			gameState->getWeatherSlot(flag).slotdraw(*gameState, gameState->getCurrentPlayer()->getId(), showWeatherSlots);
+			gameState->getWeatherSlot(flag).slotdraw(*gameState, localPlayerId, showWeatherSlots);
 
 			// Always draw flags
 			if (gameState->getFlags()[flag].getFlagStatus() == ste_NonePlayer)
@@ -600,7 +698,7 @@ void runGame(HashTable<String, Vec2>& object_pos, std::unique_ptr<GameState>& ga
 
 		// Always draw ConspiracySlot (placed cards), show empty slots only when dragging ConspiracyCard
 		bool showConspiracySlots = (draggedType == DraggedCardType::ConspiracyCard);
-		gameState->getConspiracySlot().slotdraw(*gameState, gameState->getCurrentPlayer()->getId(), showConspiracySlots);
+		gameState->getConspiracySlot().slotdraw(*gameState, localPlayerId, showConspiracySlots);
 
 		// Update visuals for both players
 		gameState->getPlayer1()->update();
@@ -639,26 +737,22 @@ void runGame(HashTable<String, Vec2>& object_pos, std::unique_ptr<GameState>& ga
 
 		gameState->autoSetFinished();
 
-		// Define hand positions
+		// Set hand positions for both players
 		const Vec2 player_hand_pos = object_pos[U"card_hand_space"];
 		const Vec2 opponent_hand_pos = { object_pos[U"card_hand_space"].x, Scene::Height() * 0.1 };
 
-		// Identify players and set their hand positions for this frame
-		Player* currentPlayer = gameState->getCurrentPlayer();
-		Player* opponentPlayer = (currentPlayer == gameState->getPlayer1()) ? gameState->getPlayer2() : gameState->getPlayer1();
+		localPlayer->setHandSpace(player_hand_pos);
+		remotePlayer->setHandSpace(opponent_hand_pos);
 
-		currentPlayer->setHandSpace(player_hand_pos);
-		opponentPlayer->setHandSpace(opponent_hand_pos);
-
-		// Draw hands from the current player's perspective
-		currentPlayer->draw(*gameState);
-		opponentPlayer->drawBacks();
+		// Draw hands from the local player's perspective
+		localPlayer->draw(*gameState);
+		remotePlayer->drawBacks();
 
 		// ReconModeのPhase 2では選択したカードに黄色のフレームを描画
 		if (gameState->isReconMode() && gameState->getReconPhase() == 2)
 		{
 			auto& selectedIndices = gameState->getReconSelectedHandIndices();
-			const auto& hand = currentPlayer->getHand();
+			const auto& hand = localPlayer->getHand();
 			for (int index : selectedIndices)
 			{
 				if (index >= 0 && index < static_cast<int>(hand.size()) && hand[index])
@@ -821,7 +915,7 @@ void Main()
 			else if (multiplayerState == MultiplayerState::Ready) {
 				// ゲーム開始準備完了 - ゲームを初期化
 				object_pos = initializePos();
-				gameState = initializeGame(object_pos);
+				gameState = initializeGame(object_pos, true); // マルチプレイモード
 
 				// GameStateにネットワークを設定
 				gameState->setNetwork(&(*photon));
@@ -832,6 +926,42 @@ void Main()
 				if (photon->isHost()) {
 					uint32_t seed = static_cast<uint32_t>(Time::GetMillisec());
 					gameState->setGameSeed(seed);
+
+					// ホスト側でもデッキをシードでシャッフル（初期手札を配る前に）
+					gameState->getDeck()->shuffleWithSeed(seed);
+					gameState->getSpecialDeck()->shuffleWithSeed(seed + 1);
+
+					// 両プレイヤーに初期手札を配る（7枚ずつ）
+					// 重要: デッキ同期の前に手札を配る
+					for (int i = 0; i < 7; i++) {
+						gameState->getPlayer1()->drawCard(gameState->getDeck());
+						gameState->getPlayer2()->drawCard(gameState->getDeck());
+					}
+
+					Print << U"[Debug] Dealt initial hands";
+					Print << U"[Debug] Player1 hand: " << gameState->getPlayer1()->getHand().size();
+					Print << U"[Debug] Player2 hand: " << gameState->getPlayer2()->getHand().size();
+
+					// 手札配布後のデッキの順序をシリアル化して送信（完全同期）
+					s3d::Array<int32> deckOrder = gameState->getDeck()->serializeDeck();
+					s3d::Array<int32> specialDeckOrder = gameState->getSpecialDeck()->serializeDeck();
+
+					Print << U"[Debug] Sending deck sync: " << deckOrder.size() << U" normal cards, " << specialDeckOrder.size() << U" special cards";
+
+					std::cout << "[Host] Special deck order being sent (first 10): ";
+					for (int i = 0; i < specialDeckOrder.size() && i < 10; i++) {
+						std::cout << specialDeckOrder[i] << " ";
+					}
+					std::cout << std::endl;
+
+					// 重要: デッキ同期を送信（手札配布後のデッキ状態）
+					gameState->sendDeckSyncEvent(deckOrder);
+					gameState->sendSpecialDeckSyncEvent(specialDeckOrder);
+
+					// デッキ同期が届くのを待つために少し待機
+					System::Sleep(100ms);
+
+					// GAME_INITイベントを送信
 					gameState->sendGameInitEvent(seed);
 				}
 
@@ -858,7 +988,7 @@ void Main()
 		case GameMode::Playing:
 		{
 			// ゲームプレイ
-			runGame(object_pos, gameState);
+			runGame(object_pos, gameState, photon ? &(*photon) : nullptr);
 
 			// ゲーム終了後はメニューに戻る
 			currentMode = GameMode::Menu;

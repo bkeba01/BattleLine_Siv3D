@@ -12,7 +12,13 @@ enum GameEventCode : uint8_t {
     EVENT_SPECIAL_CARD_START = 5,  // Special card usage start
     EVENT_SPECIAL_CARD_ACTION = 6, // Special card action
     EVENT_GAME_OVER = 7,           // Game over
-    EVENT_PLAYER_READY = 8         // Player ready
+    EVENT_PLAYER_READY = 8,        // Player ready
+    EVENT_DECK_SYNC = 9,           // Deck synchronization (full deck order)
+    EVENT_SPECIAL_DECK_SYNC = 10,  // Special deck synchronization (full deck order)
+    EVENT_RECON_CARD_ACTION = 11,  // ReconCard action (phase changes, selections)
+    EVENT_DEPLOYMENT_CARD_ACTION = 12, // DeploymentCard action
+    EVENT_ESCAPE_CARD_ACTION = 13,     // EscapeCard action
+    EVENT_BETRAYAL_CARD_ACTION = 14    // BetrayalCard action
 };
 
 // Event data structures
