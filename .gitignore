@@ -369,3 +369,4 @@ config.toml
 *.secret.toml
 **/PHOTON_APP_ID.SECRET
 src/PHOTON_APP_ID.SECRET
+*.SECRET
