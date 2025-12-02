@@ -596,14 +596,22 @@ void GameState::onGameInitReceived(uint32_t seed, int hostPlayerIndex)
 
 	m_game_seed = seed;
 
-	// 注: デッキは既に EVENT_DECK_SYNC / EVENT_SPECIAL_DECK_SYNC で同期済み
-	// また、ホスト側が手札配布後のデッキ状態を送信しているため、
-	// クライアント側では手札配布は不要（デッキが既に32枚の状態で同期されている）
+	// ゲスト側でもホストと同じシードを使ってデッキをシャッフル
+	std::cout << "[Network] Guest: Shuffling decks with seed: " << seed << std::endl;
+	m_deck.shuffleWithSeed(seed);
+	m_special_deck.shuffleWithSeed(seed + 1);
 
-	std::cout << "[Network] Deck already synchronized (post-deal state)" << std::endl;
-	std::cout << "[Network] Deck size: " << m_deck.getCards().size() << std::endl;
+	// 両プレイヤーに初期手札を配る（7枚ずつ）
+	// ホストと同じ順序でカードを引くため、同じシードなら同じ手札になる
+	for (int i = 0; i < 7; i++) {
+		m_player1.drawCard(&m_deck);
+		m_player2.drawCard(&m_deck);
+	}
+
+	std::cout << "[Network] Guest: Dealt initial hands" << std::endl;
 	std::cout << "[Network] Player1 hand size: " << m_player1.getHand().size() << std::endl;
 	std::cout << "[Network] Player2 hand size: " << m_player2.getHand().size() << std::endl;
+	std::cout << "[Network] Deck size: " << m_deck.getCards().size() << std::endl;
 }
 
 void GameState::onPlayerReadyReceived()

@@ -63,7 +63,23 @@ std::unique_ptr<GameState> initializeGame(HashTable<String,Vec2> object_pos, boo
 
 	Player player1(0, deck, object_pos[U"card_hand_size"], object_pos[U"card_hand_space"]);
 	Player player2(1, deck, object_pos[U"card_hand_size"], object_pos[U"card_opponent_hand_space"]);
+
+	// マルチプレイの場合、Playerコンストラクタで引いた手札をクリアし、デッキを再初期化
+	// （後でシードを使って正しくシャッフルしてから手札を配るため）
+	if (isMultiplayer) {
+		player1.clearHand();
+		player2.clearHand();
+
+		// デッキを再初期化（Playerコンストラクタで引かれた分を戻す）
+		deck = Deck(Font{ 30, Typeface::Bold }, Texture{ U"🃏"_emoji }, Texture{U"⚔"_emoji});
+		deck.setRect(deck_card);
+
+		specialDeck = SpecialDeck(Font{ 30, Typeface::Bold }, Texture{ U"✨"_emoji }, Texture{U"🎴"_emoji}, Font{ 12, Typeface::Bold });
+		specialDeck.setRect(special_deck_card);
+	}
+
 	auto gameState = std::make_unique<GameState>(player1, player2, deck, specialDeck);
+
 	gameState->setCurrentPlayer(gameState->getPlayer1());
 	const Texture Flag_texture{ Image{ U"resources/img/ball_red.png" }.scaled(0.2) };
 
@@ -89,40 +105,224 @@ std::unique_ptr<GameState> initializeGame(HashTable<String,Vec2> object_pos, boo
 
 	return gameState;
 }
+// アスペクト比とサイズの定数
+constexpr double ASPECT_RATIO = 4.0 / 3.0;
+constexpr int MIN_WIDTH = 800;
+constexpr int MIN_HEIGHT = 600;
+constexpr int MAX_WIDTH = 1920;
+constexpr int MAX_HEIGHT = 1440;
+
+// オブジェクト位置を計算する関数（ウィンドウサイズが変わるたびに呼ばれる）
+HashTable<String, Vec2> calculateObjectPositions()
+{
+	// Scene::Width()とScene::Height()を使用して相対的に配置
+	// これにより、どのウィンドウサイズでも同じ割合で配置される
+	const float card_hand_width = Scene::Width() * 0.1f;  // 画面幅の10%
+	const float card_hand_height = card_hand_width * 1.5f;  // 1:1.5の比率
+	const float card_slot_width = card_hand_width * 0.7f;
+	const float card_slot_height = card_hand_height * 0.7f;
+	const float card_hand_x_space = (Scene::Width() - (card_hand_width * 7)) / 2;
+	const float player_hand_y = Scene::Height() * 0.9f;
+	const float opponent_hand_y = Scene::Height() * 0.1f;
+	const float flag_space_size_x = Scene::Width() - 2 * card_slot_width;
+	const float flag_y = Scene::Height() / 2;
+
+	HashTable<String, Vec2> object_pos = {
+		{U"card_hand_size", Vec2(card_hand_width, card_hand_height)},
+		{U"card_slot_size", Vec2(card_slot_width, card_slot_height)},
+		{U"card_hand_space", Vec2(card_hand_x_space, player_hand_y)},
+		{U"card_opponent_hand_space", Vec2(card_hand_x_space, opponent_hand_y)},
+		{U"flag_space_size", Vec2(flag_space_size_x, flag_y)}
+	};
+
+	return object_pos;
+}
+
 HashTable<String, Vec2> initializePos()
 {
 	Scene::SetBackground(ColorF{ 0.3, 0.6, 0.4 });
 
+	// 現在の画面サイズを取得
+	const Size screenSize = System::GetCurrentMonitor().displayRect.size;
+
+	// 画面の80%を最大サイズとする（余裕を持たせる）
+	int maxWidth = static_cast<int>(screenSize.x * 0.8);
+	int maxHeight = static_cast<int>(screenSize.y * 0.8);
+
+	// アスペクト比を維持しながら最適なサイズを計算
+	int windowWidth, windowHeight;
+	if (maxWidth / ASPECT_RATIO <= maxHeight) {
+		windowWidth = maxWidth;
+		windowHeight = static_cast<int>(maxWidth / ASPECT_RATIO);
+	} else {
+		windowHeight = maxHeight;
+		windowWidth = static_cast<int>(maxHeight * ASPECT_RATIO);
+	}
+
+	// 最小/最大サイズでクランプ
+	windowWidth = Clamp(windowWidth, MIN_WIDTH, MAX_WIDTH);
+	windowHeight = Clamp(windowHeight, MIN_HEIGHT, MAX_HEIGHT);
+
+	// ウィンドウをリサイズ可能に設定
+	Window::SetStyle(WindowStyle::Sizable);
+
+	// ウィンドウサイズを設定
+	Window::Resize(windowWidth, windowHeight);
+
 	// 複数インスタンス起動時にウィンドウが重ならないようにランダムにずらす
 	const int instanceNum = Random(1, 99);
 	Window::SetTitle(U"Battle Line - Instance #" + ToString(instanceNum));
-	Window::Resize(1200, 900);
 
-	const int offsetX = Random(-200, 200);
-	const int offsetY = Random(-100, 100);
+	const int offsetX = Random(-100, 100);
+	const int offsetY = Random(-50, 50);
 	Window::SetPos(Window::GetPos() + Point(offsetX, offsetY));
 
+	return calculateObjectPositions();
+}
 
-	const float card_hand_width = 120;
-	const float card_hand_height = 180;
-	const float card_slot_width = card_hand_width*0.7;
-	const float card_slot_height = card_hand_height*0.7;
-	const float card_hand_x_space = (Scene::Width() - (card_hand_width / 2 * 7)) / 2;
-	const float player_hand_y = Scene::Height() * 0.9;
-	const float opponent_hand_y = Scene::Height() * 0.1;
-	const float flag_space_size_x = Scene::Width() - 2*(card_slot_width);
-	const float flag_y = Scene::Height() / 2;
-	HashTable<String, Vec2>object_pos = {
-		{U"card_hand_size",Vec2(card_hand_width,card_hand_height)},
-		{U"card_slot_size",Vec2(card_slot_width,card_slot_height)},
-		{U"card_hand_space",Vec2(card_hand_x_space,player_hand_y)},
-		{U"card_opponent_hand_space",Vec2(card_hand_x_space,opponent_hand_y)},
-		{U"flag_space_size",Vec2(flag_space_size_x,flag_y)}
-	};
+// ウィンドウがリサイズされたかチェックし、必要に応じて位置を再計算
+void updateWindowResize(HashTable<String, Vec2>& object_pos, std::unique_ptr<GameState>& gameState)
+{
+	static Size previousSize = Scene::Size();
+	Size currentSize = Scene::Size();
 
+	// ウィンドウサイズが変更された場合
+	if (currentSize != previousSize)
+	{
+		// アスペクト比を維持するように調整
+		int newWidth = currentSize.x;
+		int newHeight = currentSize.y;
 
+		// どちらの辺が変更されたかを判定
+		bool widthChanged = (newWidth != previousSize.x);
 
-	return object_pos;
+		if (widthChanged)
+		{
+			// 幅が変更された場合、高さをアスペクト比に合わせる
+			newHeight = static_cast<int>(newWidth / ASPECT_RATIO);
+		}
+		else
+		{
+			// 高さが変更された場合、幅をアスペクト比に合わせる
+			newWidth = static_cast<int>(newHeight * ASPECT_RATIO);
+		}
+
+		// 最小/最大サイズでクランプ
+		newWidth = Clamp(newWidth, MIN_WIDTH, MAX_WIDTH);
+		newHeight = Clamp(newHeight, MIN_HEIGHT, MAX_HEIGHT);
+
+		// アスペクト比を再度確保
+		if (newWidth / ASPECT_RATIO > newHeight)
+		{
+			newWidth = static_cast<int>(newHeight * ASPECT_RATIO);
+		}
+		else
+		{
+			newHeight = static_cast<int>(newWidth / ASPECT_RATIO);
+		}
+
+		// ウィンドウサイズを更新
+		if (newWidth != currentSize.x || newHeight != currentSize.y)
+		{
+			Window::Resize(newWidth, newHeight);
+			currentSize = Scene::Size();
+		}
+
+		// オブジェクト位置を再計算
+		object_pos = calculateObjectPositions();
+
+		// GameStateが存在する場合、すべてのオブジェクトの位置を更新
+		if (gameState)
+		{
+			// デッキの位置を更新
+			RectF deck_card{ Arg::center((object_pos[U"card_slot_size"].x / 2) + 10, Scene::Height() / 2),
+				object_pos[U"card_slot_size"].x, object_pos[U"card_slot_size"].y };
+			gameState->getDeck()->setRect(deck_card);
+
+			// 特殊デッキの位置を更新
+			RectF special_deck_card{
+				Arg::center(
+					Scene::Width() - (object_pos[U"card_slot_size"].x / 2) - 10,
+					Scene::Height() / 2
+				),
+				object_pos[U"card_slot_size"].x,
+				object_pos[U"card_slot_size"].y
+			};
+			gameState->getSpecialDeck()->setRect(special_deck_card);
+
+			// プレイヤーの手札スペースを更新
+			gameState->getPlayer1()->setHandSpace(object_pos[U"card_hand_space"]);
+			gameState->getPlayer1()->setHandSize(object_pos[U"card_hand_size"]);
+			gameState->getPlayer2()->setHandSpace(object_pos[U"card_opponent_hand_space"]);
+			gameState->getPlayer2()->setHandSize(object_pos[U"card_hand_size"]);
+
+			// フラグとスロットの位置を更新
+			for (int flag = 0; flag < 9; flag++)
+			{
+				gameState->getSlot(flag).setCardSlotSize(object_pos[U"card_slot_size"]);
+				float flag_between_size = (object_pos[U"flag_space_size"].x - 9 * gameState->getFlags()[flag].getTexture().width()) / 10;
+				float flag_x = object_pos[U"card_slot_size"].x + flag_between_size +
+					(gameState->getFlags()[flag].getTexture().width() / 2) +
+					flag * (gameState->getFlags()[flag].getTexture().width() + flag_between_size);
+
+				Vec2 flag_position = { flag_x, object_pos[U"flag_space_size"].y };
+				gameState->getSlot(flag).setFlagInitPosition(flag_position);
+				gameState->getFlags()[flag].setPos(flag_position);
+
+				gameState->getWeatherSlot(flag).setCardSlotSize(object_pos[U"card_slot_size"]);
+				gameState->getWeatherSlot(flag).setFlagInitPosition(flag_position);
+			}
+
+			// ConspiracySlotの更新
+			gameState->getConspiracySlot().setCardSlotSize(object_pos[U"card_slot_size"]);
+			gameState->getConspiracySlot().setSpecialDeckPosition(gameState->getSpecialDeck()->getRect().pos);
+		}
+
+		previousSize = currentSize;
+	}
+}
+
+// メニューやロビー画面用のシンプルなリサイズ処理
+void updateWindowResizeSimple()
+{
+	static Size previousSize = Scene::Size();
+	Size currentSize = Scene::Size();
+
+	if (currentSize != previousSize)
+	{
+		int newWidth = currentSize.x;
+		int newHeight = currentSize.y;
+
+		bool widthChanged = (newWidth != previousSize.x);
+
+		if (widthChanged)
+		{
+			newHeight = static_cast<int>(newWidth / ASPECT_RATIO);
+		}
+		else
+		{
+			newWidth = static_cast<int>(newHeight * ASPECT_RATIO);
+		}
+
+		newWidth = Clamp(newWidth, MIN_WIDTH, MAX_WIDTH);
+		newHeight = Clamp(newHeight, MIN_HEIGHT, MAX_HEIGHT);
+
+		if (newWidth / ASPECT_RATIO > newHeight)
+		{
+			newWidth = static_cast<int>(newHeight * ASPECT_RATIO);
+		}
+		else
+		{
+			newHeight = static_cast<int>(newWidth / ASPECT_RATIO);
+		}
+
+		if (newWidth != currentSize.x || newHeight != currentSize.y)
+		{
+			Window::Resize(newWidth, newHeight);
+		}
+
+		previousSize = currentSize;
+	}
 }
 
 // Photonイベントハンドラークラス
@@ -305,6 +505,9 @@ public:
 
 // メニュー画面の描画
 GameMode drawMenu(Font& titleFont, Font& buttonFont) {
+	// ウィンドウリサイズの処理
+	updateWindowResizeSimple();
+
 	Scene::SetBackground(ColorF{ 0.2, 0.4, 0.3 });
 
 	// タイトル
@@ -364,6 +567,9 @@ GameMode drawMenu(Font& titleFont, Font& buttonFont) {
 MultiplayerState drawMultiplayerLobby(Font& titleFont, Font& buttonFont, Font& infoFont,
 	GamePhotonHandler& photon, MultiplayerState currentState, TextEditState& roomNameState,
 	String& currentRoomCode, std::unique_ptr<GameState>& gameState) {  // ルームコードを追加
+
+	// ウィンドウリサイズの処理
+	updateWindowResizeSimple();
 
 	Scene::SetBackground(ColorF{ 0.2, 0.3, 0.4 });
 
@@ -582,6 +788,9 @@ void runGame(HashTable<String, Vec2>& object_pos, std::unique_ptr<GameState>& ga
 	Font debugFont{ 14, Typeface::Bold };
 	while (System::Update())
 	{
+		// ウィンドウリサイズの処理
+		updateWindowResize(object_pos, gameState);
+
 		// マルチプレイ時はPhotonの更新が必須
 		if (photon) {
 			photon->update();
@@ -927,42 +1136,30 @@ void Main()
 					uint32_t seed = static_cast<uint32_t>(Time::GetMillisec());
 					gameState->setGameSeed(seed);
 
-					// ホスト側でもデッキをシードでシャッフル（初期手札を配る前に）
+					Print << U"[Debug] Host: Sending GAME_INIT with seed: " << seed;
+
+					// GAME_INITイベントを送信（シードを送るだけ）
+					// ホスト側とゲスト側の両方で、このシードを使ってデッキをシャッフルし手札を配る
+					gameState->sendGameInitEvent(seed);
+
+					// イベントが届くのを待つために少し待機
+					System::Sleep(100ms);
+
+					// ホスト側でもシードを使ってデッキをシャッフルと手札配布
+					// これはonGameInitReceivedと同じ処理を行う
 					gameState->getDeck()->shuffleWithSeed(seed);
 					gameState->getSpecialDeck()->shuffleWithSeed(seed + 1);
 
 					// 両プレイヤーに初期手札を配る（7枚ずつ）
-					// 重要: デッキ同期の前に手札を配る
 					for (int i = 0; i < 7; i++) {
 						gameState->getPlayer1()->drawCard(gameState->getDeck());
 						gameState->getPlayer2()->drawCard(gameState->getDeck());
 					}
 
-					Print << U"[Debug] Dealt initial hands";
+					Print << U"[Debug] Host: Dealt initial hands";
 					Print << U"[Debug] Player1 hand: " << gameState->getPlayer1()->getHand().size();
 					Print << U"[Debug] Player2 hand: " << gameState->getPlayer2()->getHand().size();
-
-					// 手札配布後のデッキの順序をシリアル化して送信（完全同期）
-					s3d::Array<int32> deckOrder = gameState->getDeck()->serializeDeck();
-					s3d::Array<int32> specialDeckOrder = gameState->getSpecialDeck()->serializeDeck();
-
-					Print << U"[Debug] Sending deck sync: " << deckOrder.size() << U" normal cards, " << specialDeckOrder.size() << U" special cards";
-
-					std::cout << "[Host] Special deck order being sent (first 10): ";
-					for (int i = 0; i < specialDeckOrder.size() && i < 10; i++) {
-						std::cout << specialDeckOrder[i] << " ";
-					}
-					std::cout << std::endl;
-
-					// 重要: デッキ同期を送信（手札配布後のデッキ状態）
-					gameState->sendDeckSyncEvent(deckOrder);
-					gameState->sendSpecialDeckSyncEvent(specialDeckOrder);
-
-					// デッキ同期が届くのを待つために少し待機
-					System::Sleep(100ms);
-
-					// GAME_INITイベントを送信
-					gameState->sendGameInitEvent(seed);
+					Print << U"[Debug] Deck size: " << gameState->getDeck()->getCards().size();
 				}
 
 				// ゲームモードへ

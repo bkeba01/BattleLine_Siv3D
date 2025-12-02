@@ -45,10 +45,12 @@ class Player
         int removeCardFromHand(int index);
         std::shared_ptr<CardBase> removeCardFromHandByIndex(int index);
         void addCardToHand(std::shared_ptr<CardBase> card, bool force = false);
+        void clearHand();
         void setHandIsEmpty(bool empty);
         bool getHandIsEmpty() const;
 
 		void setHandSpace(Vec2 space);
+		void setHandSize(Vec2 size);
 
         void updateDrag(Array<RectF>& cardRects);
         const DragManager& getDragManager() const { return m_dragManager; }

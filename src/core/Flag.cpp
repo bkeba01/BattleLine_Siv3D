@@ -880,12 +880,20 @@ void Flag::drawWinnerFlag(GameState& gamestate)
 	{
 		m_texture.drawAt(m_draw_position.x,m_draw_position.y);
 	}
-	else if (m_take_flag== gamestate.getCurrentPlayer()->getId())
+	else
 	{
-		m_texture.drawAt(m_draw_position.x, m_draw_position.y+(gamestate.getSlot(m_position).getCardSlotSize().y));
-	}
-	else if (m_take_flag == gamestate.getOpponentPlayer()->getId())
-	{
-		m_texture.drawAt(m_draw_position.x, m_draw_position.y - (gamestate.getSlot(m_position).getCardSlotSize().y));
+		// マルチプレイの場合は、ローカルプレイヤーの視点で描画位置を決定
+		int localPlayerIndex = gamestate.isMultiplayer() ? gamestate.getLocalPlayerIndex() : 0;
+
+		if (m_take_flag == localPlayerIndex)
+		{
+			// ローカルプレイヤーが勝った場合、下に描画（Player1の位置）
+			m_texture.drawAt(m_draw_position.x, m_draw_position.y + (gamestate.getSlot(m_position).getCardSlotSize().y));
+		}
+		else
+		{
+			// 相手プレイヤーが勝った場合、上に描画（Player2の位置）
+			m_texture.drawAt(m_draw_position.x, m_draw_position.y - (gamestate.getSlot(m_position).getCardSlotSize().y));
+		}
 	}
 }

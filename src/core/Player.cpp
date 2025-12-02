@@ -126,7 +126,13 @@ void Player::addCardToHand(std::shared_ptr<CardBase> card, bool force)
     setHandIsEmpty(false);
 }
 
-bool Player::getHandIsEmpty() const 
+void Player::clearHand()
+{
+    m_hand.clear();
+    setHandIsEmpty(true);
+}
+
+bool Player::getHandIsEmpty() const
 {
     return m_hand_empty;
 }
@@ -145,6 +151,15 @@ void Player::setHandSpace(Vec2 space)
 	}
 }
 
+void Player::setHandSize(Vec2 size)
+{
+	m_card_hand_size = size;
+	for (auto& card : m_hand)
+	{
+		card->setCardHandSize(size);
+	}
+}
+
 void Player::updateDrag(Array<RectF>& cardRects)
 {
 	m_dragManager.updateDrag(cardRects);
@@ -154,6 +169,22 @@ void Player::updateDrag(Array<RectF>& cardRects)
 void Player::update()
 {
 	m_cardRects.clear();
+
+	// 手札のサイズを取得
+	int handSize = static_cast<int>(m_hand.size());
+	if (handSize == 0) return;
+
+	// カードの幅を取得
+	const double cardWidth = m_card_hand_size.x;
+	// カードは半分ずつ重なるので、次のカードまでの距離はカード幅の半分
+	const double cardOffset = cardWidth * 0.5;
+
+	// 手札全体の幅を計算（最初のカードの幅 + 残りのカード数 × オフセット）
+	const double totalWidth = cardWidth + (handSize - 1) * cardOffset;
+
+	// 画面中央に配置するための開始X座標を計算
+	const double startX = (Scene::Width() - totalWidth) / 2.0 + cardWidth / 2.0;
+
 	for (int i = static_cast<int>(ste_HandCardMinNum); i < m_hand.size(); ++i)
 	{
 		// nullチェック
@@ -162,7 +193,9 @@ void Player::update()
 			std::cout << "[Player::update] WARNING: Player " << m_id << " has null card at index " << i << std::endl;
 			continue;
 		}
-		const double centerX = m_hand[i]->getCardHandSpace().x + m_hand[i]->getCardHandSize().x / 2 * i + (m_hand[i]->getCardHandSize().x / 2.0);
+
+		// 各カードの中心X座標を計算（カードは半分ずつ重なる）
+		const double centerX = startX + i * cardOffset;
 		m_cardRects << RectF{ Arg::center(centerX, m_hand[i]->getCardHandSpace().y), m_hand[i]->getCardHandSize().x, m_hand[i]->getCardHandSize().y };
 	}
 
@@ -434,10 +467,25 @@ void Player::draw(GameState& gameState)
 
 void Player::drawBacks()
 {
+	// 手札のサイズを取得
+	int handSize = static_cast<int>(m_hand.size());
+	if (handSize == 0) return;
+
+	// カードの幅を取得
+	const double cardWidth = m_card_hand_size.x;
+	// カードは半分ずつ重なるので、次のカードまでの距離はカード幅の半分
+	const double cardOffset = cardWidth * 0.5;
+
+	// 手札全体の幅を計算（最初のカードの幅 + 残りのカード数 × オフセット）
+	const double totalWidth = cardWidth + (handSize - 1) * cardOffset;
+
+	// 画面中央に配置するための開始X座標を計算
+	const double startX = (Scene::Width() - totalWidth) / 2.0 + cardWidth / 2.0;
+
 	for (int i = 0; i < m_hand.size(); ++i)
 	{
-		// Calculate rect for opponent's cards
-		const double centerX = m_card_hand_space.x + m_card_hand_size.x / 2 * i + (m_card_hand_size.x / 2.0);
+		// 各カードの中心X座標を計算（カードは半分ずつ重なる）
+		const double centerX = startX + i * cardOffset;
 		const RectF cardRect{ Arg::center(centerX, m_card_hand_space.y), m_card_hand_size.x, m_card_hand_size.y };
 
 		m_hand[i]->setRect(cardRect);
