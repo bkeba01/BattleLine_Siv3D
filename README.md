@@ -10,7 +10,7 @@ BattleLineのローカルプレイのデモ動画です。ファイルサイズ�
 
 BattleLineのオンラインプレイのデモ動画です。ファイルサイズの関係上、再生速度の調整がされています。
 
-![Image](https://github.com/user-attachments/assets/99114a2d-1ae5-4039-a6fc-7dd0f8064ba4)
+![Image](https://github.com/user-attachments/assets/b68adbcf-ef69-40fe-b447-813a9b8204f0)
 
 ## 概要
 
