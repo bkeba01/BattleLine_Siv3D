@@ -1,5 +1,17 @@
 # Battle Line - カードゲーム
 
+## デモ動画(ローカルプレイ)
+
+BattleLineのローカルプレイのデモ動画です。ファイルサイズの関係上、再生速度の調整がされています。
+
+![Image](https://github.com/user-attachments/assets/99114a2d-1ae5-4039-a6fc-7dd0f8064ba4)
+
+## デモ動画(オンラインプレイ)
+
+BattleLineのオンラインプレイのデモ動画です。ファイルサイズの関係上、再生速度の調整がされています。
+
+![Image](https://github.com/user-attachments/assets/99114a2d-1ae5-4039-a6fc-7dd0f8064ba4)
+
 ## 概要
 
 **Battle Line**は、C++とSiv3Dゲームエンジンを使用して開発された戦略的カードゲームです。2人のプレイヤーが9つの戦線（フラグ）を巡って競い合い、先に5つのフラグを獲得するか、連続する3つのフラグを制圧したプレイヤーが勝利します。
