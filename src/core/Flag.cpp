@@ -882,17 +882,28 @@ void Flag::drawWinnerFlag(GameState& gamestate)
 	}
 	else
 	{
-		// マルチプレイの場合は、ローカルプレイヤーの視点で描画位置を決定
-		int localPlayerIndex = gamestate.isMultiplayer() ? gamestate.getLocalPlayerIndex() : 0;
-
-		if (m_take_flag == localPlayerIndex)
+		// 画面下側に表示されているプレイヤーのインデックスを取得
+		// マルチプレイ：ローカルプレイヤー固定
+		// ローカルプレイ：現在のターンプレイヤー
+		int viewPlayerIndex;
+		if (gamestate.isMultiplayer())
 		{
-			// ローカルプレイヤーが勝った場合、下に描画（Player1の位置）
+			viewPlayerIndex = gamestate.getLocalPlayerIndex();
+		}
+		else
+		{
+			// ローカルプレイでは現在のターンプレイヤーが下側に表示される
+			viewPlayerIndex = gamestate.getCurrentPlayer()->getId();
+		}
+
+		if (m_take_flag == viewPlayerIndex)
+		{
+			// 画面下側のプレイヤーが勝った場合、下に描画
 			m_texture.drawAt(m_draw_position.x, m_draw_position.y + (gamestate.getSlot(m_position).getCardSlotSize().y));
 		}
 		else
 		{
-			// 相手プレイヤーが勝った場合、上に描画（Player2の位置）
+			// 画面上側のプレイヤーが勝った場合、上に描画
 			m_texture.drawAt(m_draw_position.x, m_draw_position.y - (gamestate.getSlot(m_position).getCardSlotSize().y));
 		}
 	}

@@ -435,7 +435,6 @@ void Player::handleDeckChoice(GameState& gameState)
 			// ローカルモード：通常の処理
 			gameState.drawFromNormalDeck();
 			gameState.changePlayer();
-			gameState.changePlayer();
 		}
 	}
 	// 特殊デッキのクリック判定

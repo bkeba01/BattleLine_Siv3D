@@ -500,7 +500,7 @@ namespace s3d
 		{
 			if (m_verbose)
 			{
-				Print << U"[Multiplayer_Photon] ExitGmae::LoadBalancing::Client::connect() failed.";
+				Console << U"[Multiplayer_Photon] ExitGmae::LoadBalancing::Client::connect() failed.";
 			}
 
 			return;
@@ -664,18 +664,18 @@ namespace s3d
 		{
 			if (errorCode)
 			{
-				Print << U"- [Multiplayer_Photon] errorCode: " << errorCode;
-				Print << U"- [Multiplayer_Photon] errorString: " << errorString;
+				Console << U"- [Multiplayer_Photon] errorCode: " << errorCode;
+				Console << U"- [Multiplayer_Photon] errorString: " << errorString;
 			}
 		}
 
 		template <class Type>
 		void PrintCustomEventAction(const StringView type, const LocalPlayerID playerID, const uint8 eventCode, const Type& data)
 		{
-			Print << U"[Multiplayer_Photon] Multiplayer_Photon::customEventAction(" << type << U")";
-			Print << U"- [Multiplayer_Photon] playerID: " << playerID;
-			Print << U"- [Multiplayer_Photon] eventCode: " << eventCode;
-			Print << U"- [Multiplayer_Photon] data: " << data;
+			Console << U"[Multiplayer_Photon] Multiplayer_Photon::customEventAction(" << type << U")";
+			Console << U"- [Multiplayer_Photon] playerID: " << playerID;
+			Console << U"- [Multiplayer_Photon] eventCode: " << eventCode;
+			Console << U"- [Multiplayer_Photon] data: " << data;
 		}
 
 		[[nodiscard]]
@@ -1354,8 +1354,8 @@ namespace s3d
 	{
 		if (m_verbose)
 		{
-			Print << U"[Multiplayer_Photon] Multiplayer_Photon::connectionErrorReturn() [サーバへの接続が失敗したときに呼ばれる]";
-			Print << U"- [Multiplayer_Photon] errorCode: " << errorCode;
+			Console << U"[Multiplayer_Photon] Multiplayer_Photon::connectionErrorReturn() [サーバへの接続が失敗したときに呼ばれる]";
+			Console << U"- [Multiplayer_Photon] errorCode: " << errorCode;
 		}
 	}
 
@@ -1363,18 +1363,18 @@ namespace s3d
 	{
 		if (m_verbose)
 		{
-			Print << U"[Multiplayer_Photon] Multiplayer_Photon::connectReturn()";
-			Print << U"[Multiplayer_Photon] region: " << region;
+			Console << U"[Multiplayer_Photon] Multiplayer_Photon::connectReturn()";
+			Console << U"[Multiplayer_Photon] region: " << region;
 
 			if (errorCode)
 			{
-				Print << U"- [Multiplayer_Photon] errorCode: " << errorCode;
-				Print << U"- [Multiplayer_Photon] errorString: " << errorString;
+				Console << U"- [Multiplayer_Photon] errorCode: " << errorCode;
+				Console << U"- [Multiplayer_Photon] errorString: " << errorString;
 			}
 			else
 			{
-				Print << U"- [Multiplayer_Photon] region: " << region;
-				Print << U"- [Multiplayer_Photon] cluster: " << cluster;
+				Console << U"- [Multiplayer_Photon] region: " << region;
+				Console << U"- [Multiplayer_Photon] cluster: " << cluster;
 			}
 		}
 	}
@@ -1383,7 +1383,7 @@ namespace s3d
 	{
 		if (m_verbose)
 		{
-			Print << U"[Multiplayer_Photon] Multiplayer_Photon::disconnectReturn() [サーバから切断されたときに呼ばれる]";
+			Console << U"[Multiplayer_Photon] Multiplayer_Photon::disconnectReturn() [サーバから切断されたときに呼ばれる]";
 		}
 	}
 
@@ -1391,7 +1391,7 @@ namespace s3d
 	{
 		if (m_verbose)
 		{
-			Print << U"[Multiplayer_Photon] Multiplayer_Photon::leaveRoomReturn() [ルームから退出した結果を処理する]";
+			Console << U"[Multiplayer_Photon] Multiplayer_Photon::leaveRoomReturn() [ルームから退出した結果を処理する]";
 			detail::PrintIfError(errorCode, errorString);
 		}
 	}
@@ -1400,8 +1400,8 @@ namespace s3d
 	{
 		if (m_verbose)
 		{
-			Print << U"[Multiplayer_Photon] Multiplayer_Photon::joinRandomRoomReturn()";
-			Print << U"- [Multiplayer_Photon] playerID: " << playerID;
+			Console << U"[Multiplayer_Photon] Multiplayer_Photon::joinRandomRoomReturn()";
+			Console << U"- [Multiplayer_Photon] playerID: " << playerID;
 			detail::PrintIfError(errorCode, errorString);
 		}
 	}
@@ -1410,8 +1410,8 @@ namespace s3d
 	{
 		if (m_verbose)
 		{
-			Print << U"[Multiplayer_Photon] Multiplayer_Photon::joinRoomReturn()";
-			Print << U"- [Multiplayer_Photon] playerID: " << playerID;
+			Console << U"[Multiplayer_Photon] Multiplayer_Photon::joinRoomReturn()";
+			Console << U"- [Multiplayer_Photon] playerID: " << playerID;
 			detail::PrintIfError(errorCode, errorString);
 		}
 	}
@@ -1420,10 +1420,10 @@ namespace s3d
 	{
 		if (m_verbose)
 		{
-			Print << U"[Multiplayer_Photon] Multiplayer_Photon::joinRoomEventAction() [誰か（自分を含む）が現在のルームに参加したときに呼ばれる]";
-			Print << U"- [Multiplayer_Photon] playerID [参加した人の ID]: " << newPlayer.localID;
-			Print << U"- [Multiplayer_Photon] isSelf [自分自身の参加？]: " << isSelf;
-			Print << U"- [Multiplayer_Photon] playerIDs [ルームの参加者一覧]: " << playerIDs;
+			Console << U"[Multiplayer_Photon] Multiplayer_Photon::joinRoomEventAction() [誰か（自分を含む）が現在のルームに参加したときに呼ばれる]";
+			Console << U"- [Multiplayer_Photon] playerID [参加した人の ID]: " << newPlayer.localID;
+			Console << U"- [Multiplayer_Photon] isSelf [自分自身の参加？]: " << isSelf;
+			Console << U"- [Multiplayer_Photon] playerIDs [ルームの参加者一覧]: " << playerIDs;
 		}
 	}
 
@@ -1431,9 +1431,9 @@ namespace s3d
 	{
 		if (m_verbose)
 		{
-			Print << U"[Multiplayer_Photon] Multiplayer_Photon::leaveRoomEventAction()";
-			Print << U"- [Multiplayer_Photon] playerID: " << playerID;
-			Print << U"- [Multiplayer_Photon] isInactive: " << isInactive;
+			Console << U"[Multiplayer_Photon] Multiplayer_Photon::leaveRoomEventAction()";
+			Console << U"- [Multiplayer_Photon] playerID: " << playerID;
+			Console << U"- [Multiplayer_Photon] isInactive: " << isInactive;
 		}
 	}
 
@@ -1441,8 +1441,8 @@ namespace s3d
 	{
 		if (m_verbose)
 		{
-			Print << U"[Multiplayer_Photon] Multiplayer_Photon::createRoomReturn() [ルームを新規作成した結果を処理する]";
-			Print << U"- [Multiplayer_Photon] playerID: " << playerID;
+			Console << U"[Multiplayer_Photon] Multiplayer_Photon::createRoomReturn() [ルームを新規作成した結果を処理する]";
+			Console << U"- [Multiplayer_Photon] playerID: " << playerID;
 			detail::PrintIfError(errorCode, errorString);
 		}
 	}
@@ -1451,8 +1451,8 @@ namespace s3d
 	{
 		if (m_verbose)
 		{
-			Print << U"[Multiplayer_Photon] Multiplayer_Photon::joinRandomOrCreateRoomReturn()";
-			Print << U"- [Multiplayer_Photon] playerID: " << playerID;
+			Console << U"[Multiplayer_Photon] Multiplayer_Photon::joinRandomOrCreateRoomReturn()";
+			Console << U"- [Multiplayer_Photon] playerID: " << playerID;
 			detail::PrintIfError(errorCode, errorString);
 		}
 	}
@@ -1741,10 +1741,10 @@ namespace s3d
 	{
 		if (m_verbose)
 		{
-			Print << U"[Multiplayer_Photon] Multiplayer_Photon::customEventAction(Deserializer<MemoryReader>)";
-			Print << U"[Multiplayer_Photon] playerID: " << playerID;
-			Print << U"[Multiplayer_Photon] eventCode: " << eventCode;
-			Print << U"[Multiplayer_Photon] data: " << reader->size() << U" bytes (serialized)";
+			Console << U"[Multiplayer_Photon] Multiplayer_Photon::customEventAction(Deserializer<MemoryReader>)";
+			Console << U"[Multiplayer_Photon] playerID: " << playerID;
+			Console << U"[Multiplayer_Photon] eventCode: " << eventCode;
+			Console << U"[Multiplayer_Photon] data: " << reader->size() << U" bytes (serialized)";
 		}
 	}
 

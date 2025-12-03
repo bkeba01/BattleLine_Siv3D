@@ -10,7 +10,6 @@
 #include "core/Slot.h"
 #include "Multiplayer_Photon.hpp"
 #include "core/NetworkEvents.h"
- // Photon App IDをここに定義する場合
 
 // ゲームモード
 enum class GameMode {
@@ -333,7 +332,7 @@ private:
 public:
 	GamePhotonHandler(const std::string_view secretPhotonAppID, const StringView photonAppVersion)
 		: Multiplayer_Photon(secretPhotonAppID, photonAppVersion, s3d::Verbose::Yes) {
-		Print << U"[Photon] Initializing with App ID: " << Unicode::Widen(std::string(secretPhotonAppID));
+		Console << U"[Photon] Initializing with App ID: " << Unicode::Widen(std::string(secretPhotonAppID));
 	}
 
 	void setGameState(GameState* gameState) {
@@ -342,52 +341,52 @@ public:
 
 	// 接続エラーの詳細を表示
 	void connectionErrorReturn(const int32 errorCode) override {
-		Print << U"";
-		Print << U"========================================";
-		Print << U"[Photon ERROR] Connection failed!";
-		Print << U"========================================";
-		Print << U"Error Code: " << errorCode;
-		Print << U"";
+		Console << U"";
+		Console << U"========================================";
+		Console << U"[Photon ERROR] Connection failed!";
+		Console << U"========================================";
+		Console << U"Error Code: " << errorCode;
+		Console << U"";
 
 		// エラーコード別の詳細説明
 		if (errorCode == 1043) {
-			Print << U"エラー 1043: Invalid Authentication";
-			Print << U"";
-			Print << U"原因: 認証情報（App ID/Secret Key）が正しくありません";
-			Print << U"";
-			Print << U"解決方法:";
-			Print << U"1. Photonダッシュボードを開く";
-			Print << U"   https://dashboard.photonengine.com/";
-			Print << U"";
-			Print << U"2. Applications → あなたのアプリを選択";
-			Print << U"";
-			Print << U"3. 以下の2つを確認:";
-			Print << U"   ・App ID (通常はこちら)";
-			Print << U"   ・Secret Key (Showボタンで表示)";
-			Print << U"";
-			Print << U"4. まず App ID を試す:";
-			Print << U"   Main.cpp:584 の行を以下のように変更:";
-			Print << U"   const std::string PHOTON_APP_ID = \"あなたのApp ID\";";
-			Print << U"";
-			Print << U"5. App IDでダメなら Secret Key を試す:";
-			Print << U"   Main.cpp:584 をコメントアウトして";
-			Print << U"   Main.cpp:587 のコメントを外す";
-			Print << U"";
-			Print << U"6. 再ビルドして実行";
+			Console << U"エラー 1043: Invalid Authentication";
+			Console << U"";
+			Console << U"原因: 認証情報（App ID/Secret Key）が正しくありません";
+			Console << U"";
+			Console << U"解決方法:";
+			Console << U"1. Photonダッシュボードを開く";
+			Console << U"   https://dashboard.photonengine.com/";
+			Console << U"";
+			Console << U"2. Applications → あなたのアプリを選択";
+			Console << U"";
+			Console << U"3. 以下の2つを確認:";
+			Console << U"   ・App ID (通常はこちら)";
+			Console << U"   ・Secret Key (Showボタンで表示)";
+			Console << U"";
+			Console << U"4. まず App ID を試す:";
+			Console << U"   Main.cpp:584 の行を以下のように変更:";
+			Console << U"   const std::string PHOTON_APP_ID = \"あなたのApp ID\";";
+			Console << U"";
+			Console << U"5. App IDでダメなら Secret Key を試す:";
+			Console << U"   Main.cpp:584 をコメントアウトして";
+			Console << U"   Main.cpp:587 のコメントを外す";
+			Console << U"";
+			Console << U"6. 再ビルドして実行";
 		} else {
-			Print << U"考えられる原因:";
-			Print << U"  1. Photon App ID/Secret Keyが正しく設定されていない";
-			Print << U"  2. インターネット接続の問題";
-			Print << U"  3. Photon Realtimeではなく別のタイプを選択している";
-			Print << U"";
-			Print << U"対処法:";
-			Print << U"  - https://dashboard.photonengine.com/ で認証情報を確認";
-			Print << U"  - Photon Type が 'Realtime' か確認";
-			Print << U"  - Main.cpp:584 の設定を確認";
+			Console << U"考えられる原因:";
+			Console << U"  1. Photon App ID/Secret Keyが正しく設定されていない";
+			Console << U"  2. インターネット接続の問題";
+			Console << U"  3. Photon Realtimeではなく別のタイプを選択している";
+			Console << U"";
+			Console << U"対処法:";
+			Console << U"  - https://dashboard.photonengine.com/ で認証情報を確認";
+			Console << U"  - Photon Type が 'Realtime' か確認";
+			Console << U"  - Main.cpp:584 の設定を確認";
 		}
 
-		Print << U"========================================";
-		Print << U"";
+		Console << U"========================================";
+		Console << U"";
 
 		// 親クラスのメソッドも呼ぶ
 		Multiplayer_Photon::connectionErrorReturn(errorCode);
@@ -396,13 +395,13 @@ public:
 	// 接続成功時の詳細を表示
 	void connectReturn(const int32 errorCode, const String& errorString, const String& region, const String& cluster) override {
 		if (errorCode) {
-			Print << U"[Photon ERROR] Connect failed!";
-			Print << U"  Error Code: " << errorCode;
-			Print << U"  Error String: " << errorString;
+			Console << U"[Photon ERROR] Connect failed!";
+			Console << U"  Error Code: " << errorCode;
+			Console << U"  Error String: " << errorString;
 		} else {
-			Print << U"[Photon SUCCESS] Connected!";
-			Print << U"  Region: " << region;
-			Print << U"  Cluster: " << cluster;
+			Console << U"[Photon SUCCESS] Connected!";
+			Console << U"  Region: " << region;
+			Console << U"  Cluster: " << cluster;
 		}
 
 		// 親クラスのメソッドも呼ぶ
@@ -1076,12 +1075,12 @@ void Main()
 				if (!connectCalled) {
 					photon->connect(U"Player" + ToString(Random(1000, 9999)));
 					connectCalled = true;
-					Print << U"[Debug] Connecting to Photon server...";
+					Console << U"[Debug] Connecting to Photon server...";
 				}
 
 				// 接続完了を待つ
 				if (photon->isInLobby()) {
-					Print << U"[Debug] Connected to lobby!";
+					Console << U"[Debug] Connected to lobby!";
 					multiplayerState = MultiplayerState::InLobby;
 					connectCalled = false; // リセット
 				}
@@ -1095,12 +1094,12 @@ void Main()
 					String roomName = U"BattleRoom_" + currentRoomCode;
 					photon->createRoom(roomName, 2);
 					createCalled = true;
-					Print << U"[Debug] Creating room: " << roomName;
+					Console << U"[Debug] Creating room: " << roomName;
 				}
 
 				// ルーム参加完了を待つ
 				if (photon->isInRoom()) {
-					Print << U"[Debug] Room created! Waiting for opponent...";
+					Console << U"[Debug] Room created! Waiting for opponent...";
 					multiplayerState = MultiplayerState::InRoom;
 					createCalled = false; // リセット
 				}
@@ -1111,12 +1110,12 @@ void Main()
 				if (!joinCalled) {
 					photon->joinRoom(U"BattleRoom_"+currentRoomCode);
 					joinCalled = true;
-					Print << U"[Debug] Joining random room...";
+					Console << U"[Debug] Joining random room...";
 				}
 
 				// ルーム参加完了を待つ
 				if (photon->isInRoom()) {
-					Print << U"[Debug] Joined room!";
+					Console << U"[Debug] Joined room!";
 					multiplayerState = MultiplayerState::InRoom;
 					joinCalled = false; // リセット
 				}
@@ -1136,7 +1135,7 @@ void Main()
 					uint32_t seed = static_cast<uint32_t>(Time::GetMillisec());
 					gameState->setGameSeed(seed);
 
-					Print << U"[Debug] Host: Sending GAME_INIT with seed: " << seed;
+					Console << U"[Debug] Host: Sending GAME_INIT with seed: " << seed;
 
 					// GAME_INITイベントを送信（シードを送るだけ）
 					// ホスト側とゲスト側の両方で、このシードを使ってデッキをシャッフルし手札を配る
@@ -1156,10 +1155,10 @@ void Main()
 						gameState->getPlayer2()->drawCard(gameState->getDeck());
 					}
 
-					Print << U"[Debug] Host: Dealt initial hands";
-					Print << U"[Debug] Player1 hand: " << gameState->getPlayer1()->getHand().size();
-					Print << U"[Debug] Player2 hand: " << gameState->getPlayer2()->getHand().size();
-					Print << U"[Debug] Deck size: " << gameState->getDeck()->getCards().size();
+					Console << U"[Debug] Host: Dealt initial hands";
+					Console << U"[Debug] Player1 hand: " << gameState->getPlayer1()->getHand().size();
+					Console << U"[Debug] Player2 hand: " << gameState->getPlayer2()->getHand().size();
+					Console << U"[Debug] Deck size: " << gameState->getDeck()->getCards().size();
 				}
 
 				// ゲームモードへ
