@@ -18,6 +18,67 @@ BattleLineのオンラインプレイのデモ動画です。ファイルサイ�
 
 ローカル対戦とPhotonを使ったオンラインマルチプレイの両方に対応しています。
 
+## 技術スタック
+
+- **言語**: C++17
+- **ゲームエンジン**: [Siv3D](https://siv3d.github.io/)
+- **ネットワーク**: Photon Realtime SDK
+- **ビルドシステム**: Visual Studio 2022
+
+## プロジェクト構成
+
+```
+BattleLine_Siv3D/
+├── include/
+│   └── core/
+│       ├── Card.h              # 通常カード
+│       ├── SpecialCard.h       # 特殊カード
+│       ├── Deck.h              # デッキ管理
+│       ├── SpecialDeck.h       # 特殊カードデッキ
+│       ├── Player.h            # プレイヤー管理
+│       ├── GameState.h         # ゲーム状態管理
+│       ├── Flag.h              # フラグ（戦線）
+│       ├── Slot.h              # カード配置スロット
+│       ├── WeatherSlot.h       # 気象カード用スロット
+│       ├── ConspiracySlot.h    # 謀略カード用スロット
+│       ├── DragManager.h       # ドラッグ操作管理
+│       └── NetworkEvents.h     # ネットワークイベント定義
+├── src/
+│   ├── Main.cpp                # メインループ、UI、ネットワーク処理
+│   ├── Multiplayer_Photon.cpp  # Photon統合
+│   └── core/
+│       ├── Card.cpp
+│       ├── SpecialCard.cpp
+│       ├── Player.cpp
+│       ├── GameState.cpp
+│       ├── GameStateSpecialCardHandlers.cpp  # 特殊カード処理
+│       └── ...
+├── App/
+│   └── config.toml             # 設定ファイル（Photon App IDなど）
+└── README.md
+```
+
+## 技術的な特徴
+
+### アーキテクチャ
+- **MVC的な設計**: GameStateがモデル、Mainがコントローラー兼ビュー
+- **ポリモーフィズム**: CardBaseを基底クラスとしたCard/SpecialCardの継承
+- **スマートポインタの活用**: メモリ管理にstd::shared_ptrを使用
+
+### ネットワーク同期
+- **決定論的ゲームプレイ**:
+  - ホストがゲームシード（乱数種）を送信
+  - 両プレイヤーが同じシードでデッキをシャッフル
+  - カード配置などのアクションのみをネットワーク送信
+- **イベント駆動アーキテクチャ**:
+  - カスタムイベント（GAME_INIT, CARD_PLACED, DECK_CHOICE等）
+  - 非同期処理に対応
+
+### レスポンシブUI
+- ウィンドウリサイズに対応した動的レイアウト
+- アスペクト比維持（4:3固定）
+- 相対座標によるオブジェクト配置
+
 ## 主な機能
 
 ### ゲームモード
@@ -62,46 +123,6 @@ BattleLineのオンラインプレイのデモ動画です。ファイルサイ�
   - ホバー時のハイライト表示
   - 配置可能スロットの明示
   - ターン表示・指示テキスト
-
-## 技術スタック
-
-- **言語**: C++17
-- **ゲームエンジン**: [Siv3D](https://siv3d.github.io/)
-- **ネットワーク**: Photon Realtime SDK
-- **ビルドシステム**: Visual Studio 2022
-
-## プロジェクト構成
-
-```
-BattleLine_Siv3D/
-├── include/
-│   └── core/
-│       ├── Card.h              # 通常カード
-│       ├── SpecialCard.h       # 特殊カード
-│       ├── Deck.h              # デッキ管理
-│       ├── SpecialDeck.h       # 特殊カードデッキ
-│       ├── Player.h            # プレイヤー管理
-│       ├── GameState.h         # ゲーム状態管理
-│       ├── Flag.h              # フラグ（戦線）
-│       ├── Slot.h              # カード配置スロット
-│       ├── WeatherSlot.h       # 気象カード用スロット
-│       ├── ConspiracySlot.h    # 謀略カード用スロット
-│       ├── DragManager.h       # ドラッグ操作管理
-│       └── NetworkEvents.h     # ネットワークイベント定義
-├── src/
-│   ├── Main.cpp                # メインループ、UI、ネットワーク処理
-│   ├── Multiplayer_Photon.cpp  # Photon統合
-│   └── core/
-│       ├── Card.cpp
-│       ├── SpecialCard.cpp
-│       ├── Player.cpp
-│       ├── GameState.cpp
-│       ├── GameStateSpecialCardHandlers.cpp  # 特殊カード処理
-│       └── ...
-├── App/
-│   └── config.toml             # 設定ファイル（Photon App IDなど）
-└── README.md
-```
 
 ## セットアップ方法
 
@@ -178,27 +199,6 @@ BattleLine_Siv3D/
 4. **ルーム参加**: 「ルームに参加」で相手のルームコードを入力
 5. 2人揃うと自動的にゲームが開始
 
-## 技術的な特徴
-
-### アーキテクチャ
-- **MVC的な設計**: GameStateがモデル、Mainがコントローラー兼ビュー
-- **ポリモーフィズム**: CardBaseを基底クラスとしたCard/SpecialCardの継承
-- **スマートポインタの活用**: メモリ管理にstd::shared_ptrを使用
-
-### ネットワーク同期
-- **決定論的ゲームプレイ**:
-  - ホストがゲームシード（乱数種）を送信
-  - 両プレイヤーが同じシードでデッキをシャッフル
-  - カード配置などのアクションのみをネットワーク送信
-- **イベント駆動アーキテクチャ**:
-  - カスタムイベント（GAME_INIT, CARD_PLACED, DECK_CHOICE等）
-  - 非同期処理に対応
-
-### レスポンシブUI
-- ウィンドウリサイズに対応した動的レイアウト
-- アスペクト比維持（4:3固定）
-- 相対座標によるオブジェクト配置
-
 ## 開発の経緯
 
 このプロジェクトは、以下の技術を学習・実践するために開発されました：
@@ -215,7 +215,7 @@ BattleLine_Siv3D/
 6. カード配置・デッキ選択の完全同期
 
 ## 既知の問題と注意事項
-まだまだ未完成なため不具合がいくつかあります。ご了承ください。
+
 ### 開発中の機能
 - 偵察カード（ReconCard）の処理後、一部のケースでターンが正しく進まない場合がある
 - デバッグ用のPrint文が多数残っている（Main.cpp:336-390等）
